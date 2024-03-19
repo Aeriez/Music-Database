@@ -1,16 +1,35 @@
 ﻿using dotenv.net;
 using Npgsql;
+using Renci.SshNet;
 
 DotEnv.Load();
 
-var connectionString = "Host=127.0.0.1;Port=5432;Database=p320_25";
+var username = Environment.GetEnvironmentVariable("USERNAME");
+var password = Environment.GetEnvironmentVariable("PASSWORD");
+const string database = "p320_25";
+const string sshHost = "starbug.cs.rit.edu";
 
-await using var dataSource = NpgsqlDataSource.Create(connectionString);
+var connInfo = new PasswordConnectionInfo(sshHost, username, password);
 
-await using var command = dataSource.CreateCommand("SELECT * FROM song");
-await using var reader = await command.ExecuteReaderAsync();
-
-while (await reader.ReadAsync())
+using (var sshClient = new SshClient(connInfo))
 {
-    Console.WriteLine(reader.GetString(0));
+    sshClient.Connect();
+    Console.WriteLine("Connection Established");
+
+    var port = new ForwardedPortLocal("127.0.0.1", "127.0.0.1", 5432);
+    sshClient.AddForwardedPort(port);
+    port.Start();
+    Console.WriteLine("Port Forwarded");
+
+    var connectionString = $"Server={port.BoundHost};Database={database};Port={port.BoundPort};User Id={username};Password={password};";
+    await using var dataSource = NpgsqlDataSource.Create(connectionString);
+
+    await using var command = dataSource.CreateCommand("SELECT * FROM song");
+    await using var reader = await command.ExecuteReaderAsync();
+
+    while (await reader.ReadAsync())
+    {
+        Console.WriteLine(reader.GetString(0));
+    }
 }
+
