@@ -8,10 +8,10 @@ public class User
     public string Username { get; }
     public string FirstName { get; }
     public string LastName { get; }
-    public DateOnly LastAccess { get; }
+    public DateTime LastAccess { get; }
     public DateOnly CreationDate { get; }
 
-    private User(string email, string username, string firstName, string lastName, DateOnly creationDate, DateOnly lastAccess)
+    private User(string email, string username, string firstName, string lastName, DateOnly creationDate, DateTime lastAccess)
     {
         Email = email;
         Username = username;
@@ -24,7 +24,9 @@ public class User
     public static async Task<User> SignUp(NpgsqlConnection conn, string email, string username, string password, string firstName, string lastName)
     {
         var hash = HashPassword(password);
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var today = DateTime.Now;
+        var todayDateOnly = DateOnly.FromDateTime(today);
+
         var sql = @"
             INSERT INTO users (user_email, user_name, password, first_name, last_name, creation_date, last_accessed)
             VALUES (@email, @username, @password, @first_name, @last_name, @creation_date, @last_access)
@@ -46,7 +48,7 @@ public class User
 
         await command.ExecuteNonQueryAsync();
 
-        return new User(email, username, firstName, lastName, today, today);
+        return new User(email, username, firstName, lastName, todayDateOnly, today);
     }
 
     private static byte[] HashPassword(String password)
