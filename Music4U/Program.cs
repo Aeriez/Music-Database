@@ -1,4 +1,5 @@
-﻿using dotenv.net;
+﻿using System.Runtime.CompilerServices;
+using dotenv.net;
 
 DotEnv.Load();
 
@@ -13,6 +14,7 @@ if (username == null || password == null)
 
 var db = new DatabaseManager(username, password);
 
+/*
 await using var command = db.GetDataSource().CreateCommand("SELECT * FROM song");
 await using var reader = await command.ExecuteReaderAsync();
 
@@ -20,5 +22,10 @@ while (await reader.ReadAsync())
 {
     Console.WriteLine(reader.GetString(0));
 }
+*/
+
+
+await using var conn = await db.GetDataSource().OpenConnectionAsync();
+var user = await User.SignUp(conn, "a@a.com", "test", "test", "test", "test");
 
 db.Close();
