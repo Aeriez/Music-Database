@@ -1,7 +1,7 @@
 using Renci.SshNet;
 using Npgsql;
 
-public class DatabaseManager
+public class DatabaseManager : IDisposable
 {
     private ForwardedPortLocal forwardedPort;
     private SshClient sshClient;
@@ -30,9 +30,10 @@ public class DatabaseManager
 
     public ValueTask<NpgsqlConnection> OpenConnectionAsync() => dataSource.OpenConnectionAsync();
 
-    public void Close()
+    public void Dispose()
     {
         forwardedPort?.Stop();
         sshClient?.Disconnect();
+        GC.SuppressFinalize(this);
     }
 }
