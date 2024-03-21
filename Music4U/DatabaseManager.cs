@@ -28,6 +28,8 @@ public class DatabaseManager
 
     public NpgsqlDataSource GetDataSource() => dataSource;
 
+    public ValueTask<NpgsqlConnection> OpenConnectionAsync() => dataSource.OpenConnectionAsync();
+
     public void Close()
     {
         forwardedPort?.Stop();
