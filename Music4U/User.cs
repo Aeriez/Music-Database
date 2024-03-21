@@ -21,7 +21,7 @@ public class User
         LastAccess = lastAccess;
     }
 
-    public static async Task<User> SignUp(NpgsqlConnection conn, string email, string username, string password, string firstName, string lastName)
+    public static async Task<User?> SignUp(NpgsqlConnection conn, string email, string username, string password, string firstName, string lastName)
     {
         var hash = HashPassword(password);
         var today = DateTime.Now;
@@ -46,9 +46,24 @@ public class User
             }
         };
 
-        await command.ExecuteNonQueryAsync();
+        try
+        {
+            await command.ExecuteNonQueryAsync();
+            return new User(email, username, firstName, lastName, todayDateOnly, today);
+        }
+        catch (PostgresException e)
+        {
+            if (e.SqlState == "23505")
+            {
+                Console.WriteLine("User with the same email or username already exists");
+            }
+            else
+            {
+                Console.WriteLine($"Database Error: {e.Message}");
+            }
 
-        return new User(email, username, firstName, lastName, todayDateOnly, today);
+            return null;
+        }
     }
 
     private static byte[] HashPassword(String password)

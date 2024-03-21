@@ -1,13 +1,13 @@
 using Renci.SshNet;
 using Npgsql;
 
-public class DatabaseManager
+public class DatabaseManager : IDisposable
 {
-    private ForwardedPortLocal forwardedPort;
-    private SshClient sshClient;
-    private string databaseName = "p320_25";
-    private string sshHost = "starbug.cs.rit.edu";
-    private NpgsqlDataSource dataSource;
+    private readonly ForwardedPortLocal forwardedPort;
+    private readonly SshClient sshClient;
+    private readonly string databaseName = "p320_25";
+    private readonly string sshHost = "starbug.cs.rit.edu";
+    private readonly NpgsqlDataSource dataSource;
 
     public DatabaseManager(string username, string password)
     {
@@ -28,9 +28,12 @@ public class DatabaseManager
 
     public NpgsqlDataSource GetDataSource() => dataSource;
 
-    public void Close()
+    public ValueTask<NpgsqlConnection> OpenConnectionAsync() => dataSource.OpenConnectionAsync();
+
+    public void Dispose()
     {
         forwardedPort?.Stop();
         sshClient?.Disconnect();
+        GC.SuppressFinalize(this);
     }
 }

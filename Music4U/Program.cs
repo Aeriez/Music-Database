@@ -12,7 +12,7 @@ if (username == null || password == null)
     return;
 }
 
-var db = new DatabaseManager(username, password);
+using var db = new DatabaseManager(username, password);
 
 /*
 await using var command = db.GetDataSource().CreateCommand("SELECT * FROM song");
@@ -26,6 +26,4 @@ while (await reader.ReadAsync())
 
 
 await using var conn = await db.GetDataSource().OpenConnectionAsync();
-var user = await User.SignUp(conn, "a@a.com", "test", "test", "test", "test");
-
-db.Close();
+var user = await User.SignUp(conn, "a2@a.com", "test2", "test3", "test4", "test5");
