@@ -102,7 +102,7 @@ public class CLI(DatabaseManager db)
         var email = Input.GetNonEmpty("Email: ");
         var password = Input.GetNonEmpty("Password: ");
 
-        throw new NotImplementedException("Login not yet implemented");
+        Console.WriteLine("Login not implemented yet.");
     }
 
     public void ExecuteLogout(params string[] args)
