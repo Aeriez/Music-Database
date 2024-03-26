@@ -1,55 +1,126 @@
 using Npgsql;
 
-public class CLI
+public class CLI(DatabaseManager db)
 {
-    private readonly NpgsqlConnection conn;
+    private readonly DatabaseManager DB = db;
+    private User? User = null;
 
-    public CLI(NpgsqlConnection conn)
+    public async Task<bool> Execute(string input)
     {
-        this.conn = conn;
+        input = input.Trim();
+        var split = input.Split(' ', 2);
+
+        if (split.Length == 0) return false;
+
+        Command command;
+        try
+        {
+            command = Enum.Parse<Command>(split[0], true);
+        }
+        catch (ArgumentException)
+        {
+            Console.WriteLine($"Unknown command: {split[0]}");
+            return false;
+        }
+
+        var args = split.Length == 1 ? [] : split[1].Split(' ');
+        return await Execute(command, args);
     }
 
-    public Task<User> Authenticate()
+    public async Task<bool> Execute(Command command, params string[] args)
     {
-        AuthOption option = Input.GetAuthOption("Type 'signup' to sign up or 'login' to login: ");
-
-        return option switch
+        switch (command)
         {
-            AuthOption.SignUp => SignUp(),
-            AuthOption.Login => Login(),
-            // this should never happen, but just in case
-            _ => throw new ArgumentException(option.ToString()),
-        };
+            case Command.Help:
+                throw new NotImplementedException();
+            case Command.SignUp:
+                await ExecuteSignUp(args);
+                break;
+            case Command.Login:
+                await ExecuteLogin(args);
+                break;
+            case Command.Logout:
+                ExecuteLogout(args);
+                break;
+            case Command.Quit:
+                if (args.Length > 0)
+                {
+                    Console.WriteLine("Quit command does not take any arguments.");
+                    return false;
+                }
+                return true;
+        }
+
+        return false;
     }
 
-    public async Task<User> SignUp()
+    public async Task ExecuteSignUp(params string[] args)
     {
-        while (true)
+        if (args.Length > 0)
         {
-            var email = Input.GetNonEmpty("Email: ");
-            var username = Input.GetNonEmpty("Username: ");
-            var password = Input.GetNonEmpty("Password: ");
-            var firstName = Input.GetNonEmpty("First name: ");
-            var lastName = Input.GetNonEmpty("Last name: ");
+            Console.WriteLine("Sign up command does not take any arguments.");
+            return;
+        }
 
-            var user = await User.SignUp(conn, email, username, password, firstName, lastName);
+        if (User != null)
+        {
+            Console.WriteLine("You are already logged in.");
+            return;
+        }
 
-            if (user != null)
-            {
-                return user;
-            }
+        await using var conn = await DB.GetDataSource().OpenConnectionAsync();
+
+        var email = Input.GetNonEmpty("Email: ");
+        var username = Input.GetNonEmpty("Username: ");
+        var password = Input.GetNonEmpty("Password: ");
+        var firstName = Input.GetNonEmpty("First name: ");
+        var lastName = Input.GetNonEmpty("Last name: ");
+
+        User = await User.SignUp(conn, email, username, password, firstName, lastName);
+
+        if (User != null)
+        {
+            Console.WriteLine($"Welcome, {User.Username}!");
         }
     }
 
-    public async Task<User> Login()
+    public async Task ExecuteLogin(params string[] args)
     {
-        while (true)
+        if (args.Length > 0)
         {
-            // TODO: implement login
-            var email = Input.GetNonEmpty("Email: ");
-            var password = Input.GetNonEmpty("Password: ");
+            Console.WriteLine("Login command does not take any arguments.");
+            return;
+        }
 
-            throw new NotImplementedException("Login not yet implemented");
+        if (User != null)
+        {
+            Console.WriteLine("You are already logged in.");
+            return;
+        }
+
+        // TODO: implement login
+        var email = Input.GetNonEmpty("Email: ");
+        var password = Input.GetNonEmpty("Password: ");
+
+        throw new NotImplementedException("Login not yet implemented");
+    }
+
+    public void ExecuteLogout(params string[] args)
+    {
+        if (args.Length > 0)
+        {
+            Console.WriteLine("Logout command does not take any arguments.");
+            return;
+        }
+
+        if (User == null)
+        {
+            Console.WriteLine("You are not logged in.");
+        }
+        else
+        {
+            User = null;
+            Console.WriteLine("You have successfully logged out.");
         }
     }
 }
@@ -82,42 +153,13 @@ public class Input
 
         }
     }
-
-    public static T Get<T>(string prompt, Func<string, Nullable<T>> converter) where T : struct
-    {
-        while (true)
-        {
-            var input = Get(prompt);
-            var result = converter(input);
-            if (result != null) return result.Value;
-            Console.WriteLine("Invalid input. Please try again.");
-        }
-    }
-
-    public static AuthOption GetAuthOption(string prompt)
-    {
-        return Get<AuthOption>(prompt, input => input.ToLower() switch
-        {
-            "signup" => AuthOption.SignUp,
-            "login" => AuthOption.Login,
-            _ => null
-        });
-    }
-
-    public static int GetInt(string prompt)
-    {
-        return Get<int>(prompt, input =>
-        {
-            return int.TryParse(input, out var result)
-                ? result
-                : null;
-        });
-    }
-
 }
 
-public enum AuthOption
+public enum Command
 {
+    Help,
     SignUp,
-    Login
+    Login,
+    Logout,
+    Quit,
 }

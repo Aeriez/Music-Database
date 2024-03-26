@@ -12,11 +12,14 @@ if (dbUsername == null || dbPassword == null)
 }
 
 using var db = new DatabaseManager(dbUsername, dbPassword);
-await using var conn = await db.GetDataSource().OpenConnectionAsync();
-var cli = new CLI(conn);
+
+var cli = new CLI(db);
 
 Console.WriteLine("Welcome to Music4U!");
 
-var user = await cli.Authenticate();
-
-Console.WriteLine($"Welcome, {user.Username}!");
+var quit = false;
+while (!quit)
+{
+    var input = Input.Get("Music4U> ");
+    quit = await cli.Execute(input);
+}
