@@ -19,9 +19,8 @@ var cli = new CLI(conn);
 
 Console.WriteLine("Welcome to Music4U!");
 
-var quit = false;
-while (!quit)
+while (cli.IsRunning)
 {
     var input = Input.Get("Music4U> ");
-    quit = cli.Execute(input);
+    cli.Execute(input);
 }

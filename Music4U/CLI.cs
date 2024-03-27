@@ -2,165 +2,98 @@ using Npgsql;
 
 public class CLI(NpgsqlConnection conn)
 {
-    private readonly NpgsqlConnection Conn = conn;
-    private User? CurrentUser = null;
+    public readonly NpgsqlConnection Conn = conn;
 
-    public bool Execute(string input)
+    public User? CurrentUser = null;
+    public bool IsLoggedIn => CurrentUser != null;
+    public bool IsRunning { get; private set; } = true;
+
+    public void StopRunning()
     {
-        input = input.Trim();
+        IsRunning = false;
+    }
 
-        // We need to cast this for some reason
+    public void LogoutUser()
+    {
+        CurrentUser = null;
+    }
+
+    public void Execute(string input)
+    {
+        try
+        {
+            ParseCommand(input)?.Execute(this);
+        }
+        catch (CommandParserException e)
+        {
+            Console.WriteLine(e.Message);
+        }
+    }
+
+    public static Command? ParseCommand(string input)
+    {
         var split = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var args = ((IEnumerable<string>)split).GetEnumerator();
 
-        if (!args.MoveNext()) return false;
-
-        if (!Enum.TryParse(args.Current, true, out Command command))
-        {
-            Console.WriteLine($"Unknown command: {args.Current}");
-            return false;
-        }
-
-        return Execute(command, args);
+        return ParseCommand(args);
     }
 
-    public bool Execute(Command command, IEnumerator<string> args)
-    {
-        switch (command)
-        {
-            case Command.Help:
-                throw new NotImplementedException();
-            case Command.SignUp:
-                ExecuteSignUp();
-                break;
-            case Command.Login:
-                ExecuteLogin();
-                break;
-            case Command.Logout:
-                ExecuteLogout();
-                break;
-            case Command.Search:
-                ExecuteSearch(args);
-                break;
-            case Command.Quit:
-                return true;
-        }
-
-        // Ignore all uncaptured arguments
-        while (args.MoveNext())
-        {
-            Console.WriteLine($"Ignoring argument: {args.Current}");
-        }
-
-        return false;
-    }
-
-    public void ExecuteSignUp()
-    {
-        if (CurrentUser != null)
-        {
-            Console.WriteLine("You are already logged in.");
-            return;
-        }
-
-        var email = Input.GetNonEmpty("Email: ");
-        var username = Input.GetNonEmpty("Username: ");
-        var password = Input.GetNonEmpty("Password: ");
-        var firstName = Input.GetNonEmpty("First name: ");
-        var lastName = Input.GetNonEmpty("Last name: ");
-
-        try
-        {
-            CurrentUser = User.SignUp(Conn, email, username, password, firstName, lastName);
-        }
-        catch (DuplicateException e)
-        {
-            Console.WriteLine(e.Message);
-            return;
-        }
-
-        Console.Write($"Welcome, {CurrentUser.Username}!");
-    }
-
-    public void ExecuteLogin()
-    {
-        if (CurrentUser != null)
-        {
-            Console.WriteLine("You are already logged in.");
-            return;
-        }
-
-        // TODO: implement login
-        var email = Input.GetNonEmpty("Email: ");
-        var password = Input.GetNonEmpty("Password: ");
-
-        Console.WriteLine("Login not implemented yet.");
-    }
-
-    public void ExecuteLogout(params string[] args)
-    {
-        if (args.Length > 0)
-        {
-            Console.WriteLine("Logout command does not take any arguments.");
-            return;
-        }
-
-        if (CurrentUser == null)
-        {
-            Console.WriteLine("You are not logged in.");
-        }
-        else
-        {
-            CurrentUser = null;
-            Console.WriteLine("You have successfully logged out.");
-        }
-    }
-
-    public void ExecuteSearch(IEnumerator<string> args)
+    private static Command? ParseCommand(IEnumerator<string> args)
     {
         if (!args.MoveNext())
         {
-            Console.WriteLine("Search command requires at least one argument.");
-            return;
+            return null;
         }
 
-        if (!Enum.TryParse(args.Current, true, out SearchTarget target))
+        Command command = args.Current.ToLower() switch
         {
-            Console.WriteLine($"Unknown search target: {args.Current}");
-            return;
+            "help" => new Command.Help(),
+            "signup" => new Command.SignUp(),
+            "login" => new Command.Login(),
+            "logout" => new Command.Logout(),
+            "search" => ParseSearchCommand(args),
+            "quit" => new Command.Quit(),
+            _ => throw new CommandParserException($"Unknown command: {args.Current}"),
+        };
+
+        if (args.MoveNext())
+        {
+            throw new CommandParserException($"Unexpected argument: {args.Current}");
         }
 
-        switch (target)
-        {
-            case SearchTarget.User:
-                // Accept search term as argument, or prompt
-                var searchTerm = args.MoveNext() ? args.Current : Input.GetNonEmpty("Search: ");
-                Console.WriteLine($"Searching for users with email containing '{searchTerm}'...");
-                Console.WriteLine("Not implemented yet.");
-                break;
-            case SearchTarget.Song:
-                ExecuteSearchSong(args);
-                break;
-        }
+        return command;
     }
 
-    public void ExecuteSearchSong(IEnumerator<string> args)
+    private static Command.Search ParseSearchCommand(IEnumerator<string> args)
     {
-        SongSearchType searchType = SongSearchType.Name;
-        // If the user provides a search type, use it
-        if (args.MoveNext() && !Enum.TryParse(args.Current, true, out searchType))
+        if (!args.MoveNext())
         {
-            var lowercaseTypes = Enum.GetNames<SongSearchType>().Select(x => x.ToLower());
-            Console.WriteLine($"Unknown search type: {args.Current}");
-            Console.WriteLine($"Expected: {string.Join(", ", lowercaseTypes)}");
-            return;
+            throw new CommandParserException("Search command requires at least one argument.");
         }
+
+        SearchTarget target = args.Current.ToLower() switch
+        {
+            "user" => new SearchTarget.User(),
+            "song" => new SearchTarget.Song(ParseSongSearchType(args)),
+            _ => throw new CommandParserException($"Unknown search target: {args.Current}"),
+        };
 
         // Accept search term as argument, or prompt
         var searchTerm = args.MoveNext() ? args.Current : Input.GetNonEmpty("Search: ");
 
-        Console.WriteLine("Searching for songs...");
-        Console.WriteLine("Not implemented yet.");
+        return new Command.Search(target, searchTerm);
+    }
+
+    private static SongSearchType ParseSongSearchType(IEnumerator<string> args)
+    {
+        if (!args.MoveNext()) return SongSearchType.Name;
+
+        if (!Enum.TryParse(args.Current, true, out SongSearchType type))
+        {
+            throw new CommandParserException($"Unknown search type: {args.Current}");
+        }
+
+        return type;
     }
 }
 
@@ -189,25 +122,119 @@ public class Input
             {
                 return input;
             }
-
         }
     }
 }
 
-public enum Command
+public abstract record Command()
 {
-    Help,
-    SignUp,
-    Login,
-    Logout,
-    Search,
-    Quit,
+    public abstract void Execute(CLI cli);
+
+    public record Help() : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            Console.WriteLine("Help not implemented yet.");
+        }
+    }
+
+
+    public record SignUp() : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            if (cli.IsLoggedIn)
+            {
+                Console.WriteLine("You are already logged in.");
+                return;
+            }
+
+            var email = Input.GetNonEmpty("Email: ");
+            var username = Input.GetNonEmpty("Username: ");
+            var password = Input.GetNonEmpty("Password: ");
+            var firstName = Input.GetNonEmpty("First name: ");
+            var lastName = Input.GetNonEmpty("Last name: ");
+
+            try
+            {
+                cli.CurrentUser = User.SignUp(cli.Conn, email, username, password, firstName, lastName);
+            }
+            catch (DuplicateException e)
+            {
+                Console.WriteLine(e.Message);
+                return;
+            }
+
+            Console.Write($"Welcome, {cli.CurrentUser.Username}!");
+        }
+    }
+
+    public record Login() : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            if (cli.IsLoggedIn)
+            {
+                Console.WriteLine("You are already logged in.");
+                return;
+            }
+
+            // TODO: implement login
+            var email = Input.GetNonEmpty("Email: ");
+            var password = Input.GetNonEmpty("Password: ");
+
+            Console.WriteLine("Login not implemented yet.");
+        }
+    }
+
+    public record Logout() : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            if (!cli.IsLoggedIn)
+            {
+                Console.WriteLine("You are not logged in.");
+            }
+            else
+            {
+                cli.LogoutUser();
+                Console.WriteLine("You have successfully logged out.");
+            }
+
+        }
+    }
+
+    public record Search(SearchTarget Target, string SearchTerm) : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            if (Target is SearchTarget.User)
+            {
+                Console.WriteLine($"Searching for users with email containing '{SearchTerm}'...");
+                Console.WriteLine("Not implemented yet.");
+            }
+            else if (Target is SearchTarget.Song(var searchType))
+            {
+                Console.WriteLine("Searching for songs...");
+                Console.WriteLine("Not implemented yet.");
+            }
+        }
+    }
+
+    public record Quit() : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            cli.StopRunning();
+            Console.WriteLine("Goodbye!");
+        }
+    }
 }
 
-public enum SearchTarget
+public abstract record SearchTarget()
 {
-    User,
-    Song,
+    public record User() : SearchTarget;
+    public record Song(SongSearchType SearchType) : SearchTarget;
 }
 
 public enum SongSearchType
@@ -216,4 +243,8 @@ public enum SongSearchType
     Artist,
     Album,
     Genre,
+}
+
+public class CommandParserException(string message) : Exception(message)
+{
 }
