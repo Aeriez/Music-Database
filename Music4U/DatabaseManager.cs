@@ -3,37 +3,41 @@ using Npgsql;
 
 public class DatabaseManager : IDisposable
 {
-    private readonly ForwardedPortLocal forwardedPort;
-    private readonly SshClient sshClient;
-    private readonly string databaseName = "p320_25";
-    private readonly string sshHost = "starbug.cs.rit.edu";
-    private readonly NpgsqlDataSource dataSource;
+    private readonly string Username;
+    private readonly string Password;
+    private readonly ForwardedPortLocal ForwardedPort;
+    private readonly SshClient SshClient;
+
+    private const string DatabaseName = "p320_25";
+    private const string SshHost = "starbug.cs.rit.edu";
 
     public DatabaseManager(string username, string password)
     {
-        var connInfo = new PasswordConnectionInfo(sshHost, username, password);
-        sshClient = new SshClient(connInfo);
+        Username = username;
+        Password = password;
 
-        sshClient.Connect();
+        var connInfo = new PasswordConnectionInfo(SshHost, Username, Password);
+        SshClient = new SshClient(connInfo);
+
+        SshClient.Connect();
         //Console.WriteLine("SSH Connection Established");
 
-        forwardedPort = new ForwardedPortLocal("127.0.0.1", "127.0.0.1", 5432);
-        sshClient.AddForwardedPort(forwardedPort);
-        forwardedPort.Start();
+        ForwardedPort = new ForwardedPortLocal("127.0.0.1", "127.0.0.1", 5432);
+        SshClient.AddForwardedPort(ForwardedPort);
+        ForwardedPort.Start();
         //Console.WriteLine("Port Forwarded");
-
-        var connectionString = $"Server={forwardedPort.BoundHost};Database={databaseName};Port={forwardedPort.BoundPort};User Id={username};Password={password};";
-        dataSource = NpgsqlDataSource.Create(connectionString);
     }
 
-    public NpgsqlDataSource GetDataSource() => dataSource;
-
-    public ValueTask<NpgsqlConnection> OpenConnectionAsync() => dataSource.OpenConnectionAsync();
+    public NpgsqlDataSource CreateDataSource()
+    {
+        var connectionString = $"Server={ForwardedPort.BoundHost};Database={DatabaseName};Port={ForwardedPort.BoundPort};User Id={Username};Password={Password};";
+        return NpgsqlDataSource.Create(connectionString);
+    }
 
     public void Dispose()
     {
-        forwardedPort?.Stop();
-        sshClient?.Disconnect();
+        ForwardedPort?.Stop();
+        SshClient?.Disconnect();
         GC.SuppressFinalize(this);
     }
 }

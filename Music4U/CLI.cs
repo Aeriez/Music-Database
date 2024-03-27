@@ -1,9 +1,11 @@
-public class CLI(DatabaseManager db)
+using Npgsql;
+
+public class CLI(NpgsqlConnection conn)
 {
-    private readonly DatabaseManager DB = db;
+    private readonly NpgsqlConnection Conn = conn;
     private User? CurrentUser = null;
 
-    public async Task<bool> Execute(string input)
+    public bool Execute(string input)
     {
         input = input.Trim();
 
@@ -19,20 +21,20 @@ public class CLI(DatabaseManager db)
             return false;
         }
 
-        return await Execute(command, args);
+        return Execute(command, args);
     }
 
-    public async Task<bool> Execute(Command command, IEnumerator<string> args)
+    public bool Execute(Command command, IEnumerator<string> args)
     {
         switch (command)
         {
             case Command.Help:
                 throw new NotImplementedException();
             case Command.SignUp:
-                await ExecuteSignUp();
+                ExecuteSignUp();
                 break;
             case Command.Login:
-                await ExecuteLogin();
+                ExecuteLogin();
                 break;
             case Command.Logout:
                 ExecuteLogout();
@@ -50,15 +52,13 @@ public class CLI(DatabaseManager db)
         return false;
     }
 
-    public async Task ExecuteSignUp()
+    public void ExecuteSignUp()
     {
         if (CurrentUser != null)
         {
             Console.WriteLine("You are already logged in.");
             return;
         }
-
-        await using var conn = await DB.GetDataSource().OpenConnectionAsync();
 
         var email = Input.GetNonEmpty("Email: ");
         var username = Input.GetNonEmpty("Username: ");
@@ -68,7 +68,7 @@ public class CLI(DatabaseManager db)
 
         try
         {
-            CurrentUser = await User.SignUp(conn, email, username, password, firstName, lastName);
+            CurrentUser = User.SignUp(Conn, email, username, password, firstName, lastName);
         }
         catch (DuplicateException e)
         {
@@ -79,7 +79,7 @@ public class CLI(DatabaseManager db)
         Console.Write($"Welcome, {CurrentUser.Username}!");
     }
 
-    public async Task ExecuteLogin()
+    public void ExecuteLogin()
     {
         if (CurrentUser != null)
         {

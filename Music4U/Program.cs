@@ -12,8 +12,10 @@ if (dbUsername == null || dbPassword == null)
 }
 
 using var db = new DatabaseManager(dbUsername, dbPassword);
+using var dataSource = db.CreateDataSource();
+using var conn = dataSource.OpenConnection();
 
-var cli = new CLI(db);
+var cli = new CLI(conn);
 
 Console.WriteLine("Welcome to Music4U!");
 
@@ -21,5 +23,5 @@ var quit = false;
 while (!quit)
 {
     var input = Input.Get("Music4U> ");
-    quit = await cli.Execute(input);
+    quit = cli.Execute(input);
 }

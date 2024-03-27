@@ -26,7 +26,7 @@ public class User
     /// </summary>
     /// <returns>The newly created user.</returns>
     /// <exception cref="DuplicateException">If the username or email is already taken.</exception>
-    public static async Task<User> SignUp(NpgsqlConnection conn, string email, string username, string password, string firstName, string lastName)
+    public static User SignUp(NpgsqlConnection conn, string email, string username, string password, string firstName, string lastName)
     {
         var hash = HashPassword(password);
         var today = DateTime.Now;
@@ -37,7 +37,7 @@ public class User
             VALUES (@email, @username, @password, @first_name, @last_name, @creation_date, @last_access)
         ";
 
-        await using var command = new NpgsqlCommand(sql, conn)
+        using var command = new NpgsqlCommand(sql, conn)
         {
             Parameters =
             {
@@ -53,7 +53,7 @@ public class User
 
         try
         {
-            await command.ExecuteNonQueryAsync();
+            command.ExecuteNonQuery();
             return new User(email, username, firstName, lastName, todayDateOnly, today);
         }
         catch (PostgresException e)
