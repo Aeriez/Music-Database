@@ -21,7 +21,12 @@ public class User
         LastAccess = lastAccess;
     }
 
-    public static async Task<User?> SignUp(NpgsqlConnection conn, string email, string username, string password, string firstName, string lastName)
+    /// <summary>
+    /// Register a new user into the database.
+    /// </summary>
+    /// <returns>The newly created user.</returns>
+    /// <exception cref="DuplicateException">If the username or email is already taken.</exception>
+    public static async Task<User> SignUp(NpgsqlConnection conn, string email, string username, string password, string firstName, string lastName)
     {
         var hash = HashPassword(password);
         var today = DateTime.Now;
@@ -53,16 +58,12 @@ public class User
         }
         catch (PostgresException e)
         {
-            if (e.SqlState == "23505")
+            if (e.SqlState == PostgresErrorCodes.UniqueViolation)
             {
-                Console.WriteLine("User with the same email or username already exists");
-            }
-            else
-            {
-                Console.WriteLine($"Database Error: {e.Message}");
+                throw new DuplicateException("Email or username already exists.", e);
             }
 
-            return null;
+            throw;
         }
     }
 
@@ -70,4 +71,11 @@ public class User
     {
         return SHA256.HashData(Encoding.UTF8.GetBytes(password));
     }
+}
+
+public class DuplicateException : Exception
+{
+    public DuplicateException() { }
+    public DuplicateException(string message) : base(message) { }
+    public DuplicateException(string message, Exception inner) : base(message, inner) { }
 }

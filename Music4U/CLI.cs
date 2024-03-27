@@ -1,7 +1,7 @@
 public class CLI(DatabaseManager db)
 {
     private readonly DatabaseManager DB = db;
-    private User? User = null;
+    private User? CurrentUser = null;
 
     public async Task<bool> Execute(string input)
     {
@@ -52,7 +52,7 @@ public class CLI(DatabaseManager db)
 
     public async Task ExecuteSignUp()
     {
-        if (User != null)
+        if (CurrentUser != null)
         {
             Console.WriteLine("You are already logged in.");
             return;
@@ -66,17 +66,22 @@ public class CLI(DatabaseManager db)
         var firstName = Input.GetNonEmpty("First name: ");
         var lastName = Input.GetNonEmpty("Last name: ");
 
-        User = await User.SignUp(conn, email, username, password, firstName, lastName);
-
-        if (User != null)
+        try
         {
-            Console.WriteLine($"Welcome, {User.Username}!");
+            CurrentUser = await User.SignUp(conn, email, username, password, firstName, lastName);
         }
+        catch (DuplicateException e)
+        {
+            Console.WriteLine(e.Message);
+            return;
+        }
+
+        Console.Write($"Welcome, {CurrentUser.Username}!");
     }
 
     public async Task ExecuteLogin()
     {
-        if (User != null)
+        if (CurrentUser != null)
         {
             Console.WriteLine("You are already logged in.");
             return;
@@ -97,13 +102,13 @@ public class CLI(DatabaseManager db)
             return;
         }
 
-        if (User == null)
+        if (CurrentUser == null)
         {
             Console.WriteLine("You are not logged in.");
         }
         else
         {
-            User = null;
+            CurrentUser = null;
             Console.WriteLine("You have successfully logged out.");
         }
     }
