@@ -39,6 +39,9 @@ public class CLI(NpgsqlConnection conn)
             case Command.Logout:
                 ExecuteLogout();
                 break;
+            case Command.Search:
+                ExecuteSearch(args);
+                break;
             case Command.Quit:
                 return true;
         }
