@@ -1,5 +1,3 @@
-using Npgsql;
-
 public class CLI(DatabaseManager db)
 {
     private readonly DatabaseManager DB = db;
@@ -8,60 +6,52 @@ public class CLI(DatabaseManager db)
     public async Task<bool> Execute(string input)
     {
         input = input.Trim();
-        var split = input.Split(' ', 2);
 
-        if (split.Length == 0) return false;
+        // We need to cast this for some reason
+        var split = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var args = ((IEnumerable<string>)split).GetEnumerator();
 
-        Command command;
-        try
+        if (!args.MoveNext()) return false;
+
+        if (!Enum.TryParse(args.Current, true, out Command command))
         {
-            command = Enum.Parse<Command>(split[0], true);
-        }
-        catch (ArgumentException)
-        {
-            Console.WriteLine($"Unknown command: {split[0]}");
+            Console.WriteLine($"Unknown command: {args.Current}");
             return false;
         }
 
-        var args = split.Length == 1 ? [] : split[1].Split(' ');
         return await Execute(command, args);
     }
 
-    public async Task<bool> Execute(Command command, params string[] args)
+    public async Task<bool> Execute(Command command, IEnumerator<string> args)
     {
         switch (command)
         {
             case Command.Help:
                 throw new NotImplementedException();
             case Command.SignUp:
-                await ExecuteSignUp(args);
+                await ExecuteSignUp();
                 break;
             case Command.Login:
-                await ExecuteLogin(args);
+                await ExecuteLogin();
                 break;
             case Command.Logout:
-                ExecuteLogout(args);
+                ExecuteLogout();
                 break;
             case Command.Quit:
-                if (args.Length > 0)
-                {
-                    Console.WriteLine("Quit command does not take any arguments.");
-                    return false;
-                }
                 return true;
+        }
+
+        // Ignore all uncaptured arguments
+        while (args.MoveNext())
+        {
+            Console.WriteLine($"Ignoring argument: {args.Current}");
         }
 
         return false;
     }
 
-    public async Task ExecuteSignUp(params string[] args)
+    public async Task ExecuteSignUp()
     {
-        if (args.Length > 0)
-        {
-            Console.WriteLine("Sign up command does not take any arguments.");
-            return;
-        }
-
         if (User != null)
         {
             Console.WriteLine("You are already logged in.");
@@ -84,14 +74,8 @@ public class CLI(DatabaseManager db)
         }
     }
 
-    public async Task ExecuteLogin(params string[] args)
+    public async Task ExecuteLogin()
     {
-        if (args.Length > 0)
-        {
-            Console.WriteLine("Login command does not take any arguments.");
-            return;
-        }
-
         if (User != null)
         {
             Console.WriteLine("You are already logged in.");
@@ -122,6 +106,53 @@ public class CLI(DatabaseManager db)
             User = null;
             Console.WriteLine("You have successfully logged out.");
         }
+    }
+
+    public void ExecuteSearch(IEnumerator<string> args)
+    {
+        if (!args.MoveNext())
+        {
+            Console.WriteLine("Search command requires at least one argument.");
+            return;
+        }
+
+        if (!Enum.TryParse(args.Current, true, out SearchTarget target))
+        {
+            Console.WriteLine($"Unknown search target: {args.Current}");
+            return;
+        }
+
+        switch (target)
+        {
+            case SearchTarget.User:
+                // Accept search term as argument, or prompt
+                var searchTerm = args.MoveNext() ? args.Current : Input.GetNonEmpty("Search: ");
+                Console.WriteLine($"Searching for users with email containing '{searchTerm}'...");
+                Console.WriteLine("Not implemented yet.");
+                break;
+            case SearchTarget.Song:
+                ExecuteSearchSong(args);
+                break;
+        }
+    }
+
+    public void ExecuteSearchSong(IEnumerator<string> args)
+    {
+        SongSearchType searchType = SongSearchType.Name;
+        // If the user provides a search type, use it
+        if (args.MoveNext() && !Enum.TryParse(args.Current, true, out searchType))
+        {
+            var lowercaseTypes = Enum.GetNames<SongSearchType>().Select(x => x.ToLower());
+            Console.WriteLine($"Unknown search type: {args.Current}");
+            Console.WriteLine($"Expected: {string.Join(", ", lowercaseTypes)}");
+            return;
+        }
+
+        // Accept search term as argument, or prompt
+        var searchTerm = args.MoveNext() ? args.Current : Input.GetNonEmpty("Search: ");
+
+        Console.WriteLine("Searching for songs...");
+        Console.WriteLine("Not implemented yet.");
     }
 }
 
@@ -161,5 +192,20 @@ public enum Command
     SignUp,
     Login,
     Logout,
+    Search,
     Quit,
+}
+
+public enum SearchTarget
+{
+    User,
+    Song,
+}
+
+public enum SongSearchType
+{
+    Name,
+    Artist,
+    Album,
+    Genre,
 }
