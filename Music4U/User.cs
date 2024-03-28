@@ -122,6 +122,37 @@ public class User
         return new User(email, username, firstName, lastName, creationDate, now);
     }
 
+    public List<User> SearchUsers(NpgsqlConnection conn, string query)
+    {
+        const string sql = @"
+            SELECT user_email, user_name, first_name, last_name, creation_date, last_accessed
+            FROM users
+            WHERE user_email LIKE @query
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new("query", $"%{query}%") }
+        };
+
+        using var reader = command.ExecuteReader();
+
+        var users = new List<User>();
+
+        while (reader.Read())
+        {
+            var email = reader.GetString(0);
+            var username = reader.GetString(1);
+            var firstName = reader.GetString(2);
+            var lastName = reader.GetString(3);
+            var creationDate = DateOnly.FromDateTime(reader.GetDateTime(4));
+            var lastAccess = reader.GetDateTime(5);
+            users.Add(new User(email, username, firstName, lastName, creationDate, lastAccess));
+        }
+
+        return users;
+    }
+
     /// <summary>
     /// Follows a user.
     /// </summary>
@@ -143,7 +174,6 @@ public class User
         {
             command.ExecuteNonQuery();
         }
-
         catch (PostgresException e)
         {
             if (e.SqlState == PostgresErrorCodes.UniqueViolation)
