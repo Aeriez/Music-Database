@@ -87,17 +87,21 @@ public class User
             Parameters = { new("email", email), new("password", hash) }
         };
 
-        using var reader = command.ExecuteReader();
+        string username, firstName, lastName;
+        DateOnly creationDate;
 
-        if (!reader.HasRows)
+        using (var reader = command.ExecuteReader())
         {
-            throw new InvalidCredentialsException($"Invalid email or password.");
-        }
+            if (!reader.Read())
+            {
+                throw new InvalidCredentialsException($"Invalid email or password.");
+            }
 
-        var username = reader.GetString(0);
-        var firstName = reader.GetString(1);
-        var lastName = reader.GetString(2);
-        var creationDate = DateOnly.FromDateTime(reader.GetDateTime(3));
+            username = reader.GetString(0);
+            firstName = reader.GetString(1);
+            lastName = reader.GetString(2);
+            creationDate = DateOnly.FromDateTime(reader.GetDateTime(3));
+        }
 
         var now = DateTime.Now;
 
@@ -114,7 +118,7 @@ public class User
 
         updateLastAccessCommand.ExecuteNonQuery();
 
-        return new User(email, username, firstName, lastName, creationDate, DateTime.Now);
+        return new User(email, username, firstName, lastName, creationDate, now);
     }
 
     /// <summary>
