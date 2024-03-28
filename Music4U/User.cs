@@ -230,42 +230,8 @@ public class User
 
     private static void createCollection(Collection id, Collection user_email, Collection name)
     {
-        
 
-    }
 
-    private static void searchForSong(NpgsqlConnection conn )
-    {
-        //change sql statement to list 
-        string sql = "SELECT * FROM Songs WHERE title LIKE @searchTerm";
-        Console.WriteLine("Enter the song title to search for:");
-        string searchTerm = Console.ReadLine();
-
-        
-        
-        using(conn)
-        {
-            var command = new NpgsqlCommand(sql, conn);
-            command.Parameters.AddWithValue("@searchTerm", "%" + searchTerm + "%");
-
-            try
-            {
-                conn.Open();
-                NpgsqlDataReader reader = command.ExecuteReader();
-
-                if (reader.HasRows)
-                {
-                    Console.WriteLine("Search Results:");
-                    while (reader.Read())
-                    {
-                        Console.WriteLine($"Title: {reader["title"]}, Duration: {reader["time"]}, Release Date: {reader["release_data"]}, ");
-                    }
-                }
-            }
-            catch(Exception e) {}
-                
-        }
-            
     }
 }
 
