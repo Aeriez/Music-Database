@@ -122,7 +122,7 @@ public class User
         return new User(email, username, firstName, lastName, creationDate, now);
     }
 
-    public List<User> SearchUsers(NpgsqlConnection conn, string query)
+    public static List<User> SearchUsers(NpgsqlConnection conn, string query)
     {
         const string sql = @"
             SELECT user_email, user_name, first_name, last_name, creation_date, last_accessed

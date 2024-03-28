@@ -194,7 +194,20 @@ public abstract record Command()
             if (Target is SearchTarget.User)
             {
                 Console.WriteLine($"Searching for users with email containing '{searchTerm}'...");
-                Console.WriteLine("Not implemented yet.");
+                List<User> users = User.SearchUsers(cli.Conn, searchTerm);
+
+                if (users.Count == 0)
+                {
+                    Console.WriteLine("No users found.");
+                }
+                else
+                {
+                    Console.WriteLine($"Found {users.Count} users:");
+                    foreach (var user in users)
+                    {
+                        Console.WriteLine($"{user.Username} ({user.Email})");
+                    }
+                }
             }
             else if (Target is SearchTarget.Song(var searchType))
             {
