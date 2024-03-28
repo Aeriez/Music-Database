@@ -54,6 +54,7 @@ public class CLI(NpgsqlConnection conn)
             "search" => ParseSearchCommand(args),
             "follow" => ParseFollowCommand(args),
             "unfollow" => ParseUnfollowCommand(args),
+            "playlist" => ParsePlaylistCommand(args),
             "quit" => new Command.Quit(),
             _ => throw new CommandParserException($"Unknown command: {args.Current}"),
         };
@@ -116,6 +117,79 @@ public class CLI(NpgsqlConnection conn)
         }
 
         return new Command.Unfollow(args.Current);
+    }
+
+    private static Command.Playlist ParsePlaylistCommand(IEnumerator<string> args)
+    {
+        if (!args.MoveNext())
+        {
+            throw new CommandParserException("Playlist command requires at least one argument.");
+        }
+
+        PlaylistCommand command = args.Current.ToLower() switch
+        {
+            "list" => new PlaylistCommand.List(),
+            "create" => new PlaylistCommand.Create(args.MoveNext() ? args.Current : null),
+            "delete" => ParsePlaylistDeleteCommand(args),
+            "add" => ParsePlaylistAddCommand(args),
+            "remove" => ParsePlaylistRemoveCommand(args),
+            _ => throw new CommandParserException($"Unknown playlist command: {args.Current}"),
+        };
+
+        return new Command.Playlist(command);
+    }
+
+    private static PlaylistCommand.Delete ParsePlaylistDeleteCommand(IEnumerator<string> args)
+    {
+        if (!args.MoveNext())
+        {
+            throw new CommandParserException("Playlist delete command requires at least one argument.");
+        }
+
+        if (int.TryParse(args.Current, out var id))
+        {
+            return new PlaylistCommand.Delete(id);
+        }
+        else
+        {
+            throw new CommandParserException($"Invalid playlist id: {args.Current}");
+        }
+    }
+
+    private static PlaylistCommand.Add ParsePlaylistAddCommand(IEnumerator<string> args)
+    {
+        var playlistIdRaw = args.MoveNext() ? args.Current : throw new CommandParserException("Playlist add command requires two arguments.");
+        var songIdRaw = args.MoveNext() ? args.Current : throw new CommandParserException("Playlist add command requires two arguments.");
+
+        if (!int.TryParse(args.Current, out var playlistId))
+        {
+            throw new CommandParserException($"Invalid playlist id: {args.Current}");
+        }
+
+        if (!int.TryParse(args.Current, out var songId))
+        {
+            throw new CommandParserException($"Invalid song id: {args.Current}");
+        }
+
+        return new PlaylistCommand.Add(playlistId, songId);
+    }
+
+    private static PlaylistCommand.Remove ParsePlaylistRemoveCommand(IEnumerator<string> args)
+    {
+        var playlistIdRaw = args.MoveNext() ? args.Current : throw new CommandParserException("Playlist add command requires two arguments.");
+        var songIdRaw = args.MoveNext() ? args.Current : throw new CommandParserException("Playlist add command requires two arguments.");
+
+        if (!int.TryParse(args.Current, out var playlistId))
+        {
+            throw new CommandParserException($"Invalid playlist id: {args.Current}");
+        }
+
+        if (!int.TryParse(args.Current, out var songId))
+        {
+            throw new CommandParserException($"Invalid song id: {args.Current}");
+        }
+
+        return new PlaylistCommand.Remove(playlistId, songId);
     }
 }
 
@@ -296,6 +370,20 @@ public abstract record Command()
         }
     }
 
+    public record Playlist(PlaylistCommand Command) : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            if (cli.CurrentUser == null)
+            {
+                Console.WriteLine("You are not logged in.");
+                return;
+            }
+
+            Command.Execute(cli.Conn, cli.CurrentUser);
+        }
+    }
+
     public record Quit() : Command
     {
         public override void Execute(CLI cli)
@@ -318,6 +406,54 @@ public enum SongSearchType
     Artist,
     Album,
     Genre,
+}
+
+/// <summary>
+/// Base class for playlist, aka collection, commands.
+/// </summary>
+public abstract record PlaylistCommand()
+{
+    public abstract void Execute(NpgsqlConnection conn, User user);
+
+    public record List() : PlaylistCommand
+    {
+        public override void Execute(NpgsqlConnection conn, User user)
+        {
+            // TODO
+        }
+    }
+
+    public record Create(string? PlaylistName) : PlaylistCommand
+    {
+        public override void Execute(NpgsqlConnection conn, User user)
+        {
+            // TODO
+        }
+    }
+
+    public record Delete(int PlaylistId) : PlaylistCommand
+    {
+        public override void Execute(NpgsqlConnection conn, User user)
+        {
+            // TODO
+        }
+    }
+
+    public record Add(int PlaylistId, int SongId) : PlaylistCommand
+    {
+        public override void Execute(NpgsqlConnection conn, User user)
+        {
+            // TODO
+        }
+    }
+
+    public record Remove(int PlaylistId, int SongId) : PlaylistCommand
+    {
+        public override void Execute(NpgsqlConnection conn, User user)
+        {
+            // TODO
+        }
+    }
 }
 
 public class CommandParserException(string message) : Exception(message)
