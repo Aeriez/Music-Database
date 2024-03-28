@@ -51,10 +51,10 @@ public class CLI(NpgsqlConnection conn)
             "signup" => new Command.SignUp(),
             "login" => new Command.Login(),
             "logout" => new Command.Logout(),
-            "search" => ParseSearchCommand(args),
-            "follow" => ParseFollowCommand(args),
-            "unfollow" => ParseUnfollowCommand(args),
-            "playlist" => ParsePlaylistCommand(args),
+            "search" => Command.Search.Parse(args),
+            "follow" => Command.Follow.Parse(args),
+            "unfollow" => Command.Unfollow.Parse(args),
+            "playlist" => Command.Playlist.Parse(args),
             "quit" => new Command.Quit(),
             _ => throw new CommandParserException($"Unknown command: {args.Current}"),
         };
@@ -65,128 +65,6 @@ public class CLI(NpgsqlConnection conn)
         }
 
         return command;
-    }
-
-    private static Command.Search ParseSearchCommand(IEnumerator<string> args)
-    {
-        if (!args.MoveNext())
-        {
-            throw new CommandParserException("Search command requires at least one argument.");
-        }
-
-        SearchTarget target = args.Current.ToLower() switch
-        {
-            "user" => new SearchTarget.User(),
-            "song" => new SearchTarget.Song(ParseSongSearchType(args)),
-            _ => throw new CommandParserException($"Unknown search target: {args.Current}"),
-        };
-
-        return new Command.Search(target);
-    }
-
-    private static SongSearchType ParseSongSearchType(IEnumerator<string> args)
-    {
-        if (!args.MoveNext()) return SongSearchType.Name;
-
-        if (!Enum.TryParse(args.Current, true, out SongSearchType type))
-        {
-            throw new CommandParserException($"Unknown search type: {args.Current}");
-        }
-
-        return type;
-    }
-
-    private static Command.Follow ParseFollowCommand(IEnumerator<string> args)
-    {
-        if (!args.MoveNext())
-        {
-            throw new CommandParserException("Follow command requires at least one argument.");
-        }
-
-        return new Command.Follow(args.Current);
-    }
-
-    private static Command.Unfollow ParseUnfollowCommand(IEnumerator<string> args)
-    {
-        if (!args.MoveNext())
-        {
-            throw new CommandParserException("Unfollow command requires at least one argument.");
-        }
-
-        return new Command.Unfollow(args.Current);
-    }
-
-    private static Command.Playlist ParsePlaylistCommand(IEnumerator<string> args)
-    {
-        if (!args.MoveNext())
-        {
-            throw new CommandParserException("Playlist command requires at least one argument.");
-        }
-
-        PlaylistCommand command = args.Current.ToLower() switch
-        {
-            "list" => new PlaylistCommand.List(),
-            "create" => new PlaylistCommand.Create(),
-            "delete" => ParsePlaylistDeleteCommand(args),
-            "add" => ParsePlaylistAddCommand(args),
-            "remove" => ParsePlaylistRemoveCommand(args),
-            _ => throw new CommandParserException($"Unknown playlist command: {args.Current}"),
-        };
-
-        return new Command.Playlist(command);
-    }
-
-    private static PlaylistCommand.Delete ParsePlaylistDeleteCommand(IEnumerator<string> args)
-    {
-        if (!args.MoveNext())
-        {
-            throw new CommandParserException("Playlist delete command requires at least one argument.");
-        }
-
-        if (int.TryParse(args.Current, out var id))
-        {
-            return new PlaylistCommand.Delete(id);
-        }
-        else
-        {
-            throw new CommandParserException($"Invalid playlist id: {args.Current}");
-        }
-    }
-
-    private static PlaylistCommand.Add ParsePlaylistAddCommand(IEnumerator<string> args)
-    {
-        var playlistIdRaw = args.MoveNext() ? args.Current : throw new CommandParserException("Playlist add command requires two arguments.");
-        var songIdRaw = args.MoveNext() ? args.Current : throw new CommandParserException("Playlist add command requires two arguments.");
-
-        if (!int.TryParse(args.Current, out var playlistId))
-        {
-            throw new CommandParserException($"Invalid playlist id: {args.Current}");
-        }
-
-        if (!int.TryParse(args.Current, out var songId))
-        {
-            throw new CommandParserException($"Invalid song id: {args.Current}");
-        }
-
-        return new PlaylistCommand.Add(playlistId, songId);
-    }
-
-    private static PlaylistCommand.Remove ParsePlaylistRemoveCommand(IEnumerator<string> args)
-    {
-        var playlistIdRaw = args.MoveNext() ? args.Current : throw new CommandParserException("Playlist add command requires two arguments.");
-        var songIdRaw = args.MoveNext() ? args.Current : throw new CommandParserException("Playlist add command requires two arguments.");
-
-        if (!int.TryParse(args.Current, out var playlistId))
-        {
-            throw new CommandParserException($"Invalid playlist id: {args.Current}");
-        }
-
-        if (!int.TryParse(args.Current, out var songId))
-        {
-            throw new CommandParserException($"Invalid song id: {args.Current}");
-        }
-
-        return new PlaylistCommand.Remove(playlistId, songId);
     }
 }
 
@@ -324,6 +202,37 @@ public abstract record Command()
                 Console.WriteLine("Not implemented yet.");
             }
         }
+
+        public static Search Parse(IEnumerator<string> args)
+        {
+            {
+                if (!args.MoveNext())
+                {
+                    throw new CommandParserException("Search command requires at least one argument.");
+                }
+
+                SearchTarget target = args.Current.ToLower() switch
+                {
+                    "user" => new SearchTarget.User(),
+                    "song" => new SearchTarget.Song(ParseSongSearchType(args)),
+                    _ => throw new CommandParserException($"Unknown search target: {args.Current}"),
+                };
+
+                return new Command.Search(target);
+            }
+        }
+
+        private static SongSearchType ParseSongSearchType(IEnumerator<string> args)
+        {
+            if (!args.MoveNext()) return SongSearchType.Name;
+
+            if (!Enum.TryParse(args.Current, true, out SongSearchType type))
+            {
+                throw new CommandParserException($"Unknown search type: {args.Current}");
+            }
+
+            return type;
+        }
     }
 
     public record Follow(string Email) : Command
@@ -352,6 +261,16 @@ public abstract record Command()
                 Console.WriteLine(e.Message);
             }
         }
+
+        public static Follow Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("Follow command requires at least one argument.");
+            }
+
+            return new Follow(args.Current);
+        }
     }
 
     public record Unfollow(string Email) : Command
@@ -367,6 +286,17 @@ public abstract record Command()
             cli.CurrentUser.UnfollowUser(cli.Conn, Email);
             Console.WriteLine($"You are no longer following {Email}.");
         }
+
+        public static Unfollow Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("Unfollow command requires at least one argument.");
+            }
+
+            return new Unfollow(args.Current);
+        }
+
     }
 
     public record Playlist(PlaylistCommand Command) : Command
@@ -380,6 +310,26 @@ public abstract record Command()
             }
 
             Command.Execute(cli.Conn, cli.CurrentUser);
+        }
+
+        public static Playlist Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("Playlist command requires at least one argument.");
+            }
+
+            PlaylistCommand command = args.Current.ToLower() switch
+            {
+                "list" => new PlaylistCommand.List(),
+                "create" => new PlaylistCommand.Create(),
+                "delete" => PlaylistCommand.Delete.Parse(args),
+                "add" => PlaylistCommand.Add.Parse(args),
+                "remove" => PlaylistCommand.Remove.Parse(args),
+                _ => throw new CommandParserException($"Unknown playlist command: {args.Current}"),
+            };
+
+            return new Command.Playlist(command);
         }
     }
 
@@ -437,6 +387,23 @@ public abstract record PlaylistCommand()
         {
             // TODO
         }
+
+        public static Delete Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("Playlist delete command requires at least one argument.");
+            }
+
+            if (int.TryParse(args.Current, out var id))
+            {
+                return new Delete(id);
+            }
+            else
+            {
+                throw new CommandParserException($"Invalid playlist id: {args.Current}");
+            }
+        }
     }
 
     public record Add(int PlaylistId, int SongId) : PlaylistCommand
@@ -445,6 +412,29 @@ public abstract record PlaylistCommand()
         {
             // TODO
         }
+
+        public static Add Parse(IEnumerator<string> args)
+        {
+            var playlistIdRaw = args.MoveNext()
+                ? args.Current
+                : throw new CommandParserException("Playlist add command requires two arguments.");
+
+            var songIdRaw = args.MoveNext()
+                ? args.Current
+                : throw new CommandParserException("Playlist add command requires two arguments.");
+
+            if (!int.TryParse(playlistIdRaw, out var playlistId))
+            {
+                throw new CommandParserException($"Invalid playlist id: {args.Current}");
+            }
+
+            if (!int.TryParse(songIdRaw, out var songId))
+            {
+                throw new CommandParserException($"Invalid song id: {args.Current}");
+            }
+
+            return new Add(playlistId, songId);
+        }
     }
 
     public record Remove(int PlaylistId, int SongId) : PlaylistCommand
@@ -452,6 +442,29 @@ public abstract record PlaylistCommand()
         public override void Execute(NpgsqlConnection conn, User user)
         {
             // TODO
+        }
+
+        public static Remove Parse(IEnumerator<string> args)
+        {
+            var playlistIdRaw = args.MoveNext()
+                ? args.Current
+                : throw new CommandParserException("Playlist add command requires two arguments.");
+
+            var songIdRaw = args.MoveNext()
+                ? args.Current
+                : throw new CommandParserException("Playlist add command requires two arguments.");
+
+            if (!int.TryParse(playlistIdRaw, out var playlistId))
+            {
+                throw new CommandParserException($"Invalid playlist id: {args.Current}");
+            }
+
+            if (!int.TryParse(songIdRaw, out var songId))
+            {
+                throw new CommandParserException($"Invalid song id: {args.Current}");
+            }
+
+            return new Remove(playlistId, songId);
         }
     }
 }
