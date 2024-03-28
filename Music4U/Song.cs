@@ -1,7 +1,7 @@
 
 using Npgsql;
 
-public record Song(int Id, string Title, string ArtistNames, string AlbumNames, int Time, int ListenCount)
+public record Song(int Id, string Title, string ArtistNames, string AlbumNames, TimeSpan Time, int ListenCount)
 {
     public static List<Song> SearchSongs(NpgsqlConnection conn, SongSearchType searchType, string query)
     {
@@ -201,7 +201,7 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
                 reader.GetString(1),
                 reader.GetString(2),
                 reader.GetString(3),
-                reader.GetInt32(4),
+                reader.GetTimeSpan(4),
                 reader.GetInt32(5)
             ));
         }

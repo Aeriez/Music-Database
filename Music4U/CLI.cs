@@ -211,8 +211,22 @@ public abstract record Command()
             }
             else if (Target is SearchTarget.Song(var searchType))
             {
-                Console.WriteLine("Searching for songs...");
-                Console.WriteLine("Not implemented yet.");
+                var typeName = searchType.ToString().ToLower();
+                Console.WriteLine($"Searching for songs by {typeName}...");
+                List<Song> songs = Song.SearchSongs(cli.Conn, searchType, searchTerm);
+
+                if (songs.Count == 0)
+                {
+                    Console.WriteLine("No songs found.");
+                }
+                else
+                {
+                    Console.WriteLine($"Found {songs.Count} songs:");
+                    foreach (var song in songs)
+                    {
+                        Console.WriteLine($"{song.Title} by {song.ArtistNames} ({song.Time}) in {song.AlbumNames} ({song.ListenCount} listens)");
+                    }
+                }
             }
         }
 
