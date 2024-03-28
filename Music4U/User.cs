@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Npgsql;
+using Renci.SshNet;
 
 public class User
 {
@@ -176,12 +177,68 @@ public class User
         command.ExecuteNonQuery();
     }
 
+    public void PlaySong(NpgsqlConnection conn, string songId)
+    {
+        string sql = @"
+            INSERT INTO user_listens_to_song (user_email, song_id, date_time)
+            VALUES(@user_email, @song_id, @date_time)
+        ";
+        
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new("user_email", Email), new("song_id", songId), new("date_time", DateTime.Now)}
+        };
+
+        command.ExecuteNonQuery();
+    }
+
     private static byte[] HashPassword(String password)
     {
         const string salt = "Music4U";
         return SHA256.HashData(Encoding.UTF8.GetBytes(password + salt));
     }
+
+    private static void createCollection(Collection id, Collection user_email, Collection name)
+    {
+        
+
+    }
+
+    private static void searchForSong(NpgsqlConnection conn )
+    {
+        //change sql statement to list 
+        string sql = "SELECT * FROM Songs WHERE title LIKE @searchTerm";
+        Console.WriteLine("Enter the song title to search for:");
+        string searchTerm = Console.ReadLine();
+
+        
+        
+        using(conn)
+        {
+            var command = new NpgsqlCommand(sql, conn);
+            command.Parameters.AddWithValue("@searchTerm", "%" + searchTerm + "%");
+
+            try
+            {
+                conn.Open();
+                NpgsqlDataReader reader = command.ExecuteReader();
+
+                if (reader.HasRows)
+                {
+                    Console.WriteLine("Search Results:");
+                    while (reader.Read())
+                    {
+                        Console.WriteLine($"Title: {reader["title"]}, Duration: {reader["time"]}, Release Date: {reader["release_data"]}, ");
+                    }
+                }
+            }
+            catch(Exception e) {}
+                
+        }
+            
+    }
 }
+
 
 public class DuplicateException : Exception
 {
