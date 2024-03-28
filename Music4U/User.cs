@@ -67,6 +67,56 @@ public class User
         }
     }
 
+    /// <summary>
+    /// Login a user into the database.
+    /// </summary>
+    /// <returns>The logged in user.</returns>
+    /// <exception cref="InvalidCredentialsException">If the email or password is invalid.</exception>
+    public static User Login(NpgsqlConnection conn, string email, string password)
+    {
+        var hash = HashPassword(password);
+
+        const string getUserSql = @"
+            SELECT user_name, first_name, last_name, creation_date
+            FROM users
+            WHERE user_email = @email AND password = @password
+        ";
+
+        using var command = new NpgsqlCommand(getUserSql, conn)
+        {
+            Parameters = { new("email", email), new("password", hash) }
+        };
+
+        using var reader = command.ExecuteReader();
+
+        if (!reader.HasRows)
+        {
+            throw new InvalidCredentialsException($"Invalid email or password.");
+        }
+
+        var username = reader.GetString(0);
+        var firstName = reader.GetString(1);
+        var lastName = reader.GetString(2);
+        var creationDate = DateOnly.FromDateTime(reader.GetDateTime(3));
+
+        var now = DateTime.Now;
+
+        const string updateLastAccessSql = @"
+            UPDATE users
+            SET last_accessed = @last_access
+            WHERE user_email = @email
+        ";
+
+        using var updateLastAccessCommand = new NpgsqlCommand(updateLastAccessSql, conn)
+        {
+            Parameters = { new("email", email), new("last_access", now) }
+        };
+
+        updateLastAccessCommand.ExecuteNonQuery();
+
+        return new User(email, username, firstName, lastName, creationDate, DateTime.Now);
+    }
+
     private static byte[] HashPassword(String password)
     {
         const string salt = "Music4U";
@@ -79,4 +129,11 @@ public class DuplicateException : Exception
     public DuplicateException() { }
     public DuplicateException(string message) : base(message) { }
     public DuplicateException(string message, Exception inner) : base(message, inner) { }
+}
+
+public class InvalidCredentialsException : Exception
+{
+    public InvalidCredentialsException() { }
+    public InvalidCredentialsException(string message) : base(message) { }
+    public InvalidCredentialsException(string message, Exception inner) : base(message, inner) { }
 }
