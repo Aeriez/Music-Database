@@ -29,7 +29,7 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
                 aan.artist_names as artists,
                 aan.album_names as albums,
                 s.time AS song_length,
-                lc.listen_count AS listen_count
+                COALESCE(lc.listen_count, 0) AS listen_count
             FROM song s
             INNER JOIN ArtistAlbumNames aan ON s.song_id = aan.song_id
             LEFT JOIN ListenCounts lc ON s.song_id = lc.song_id
