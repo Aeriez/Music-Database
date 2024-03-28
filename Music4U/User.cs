@@ -173,6 +173,21 @@ public class User
         command.ExecuteNonQuery();
     }
 
+    public void PlaySong(NpgsqlConnection conn, string songId)
+    {
+        string sql = @"
+            INSERT INTO user_listens_to_song (user_email, song_id, date_time)
+            VALUES(@user_email, @song_id, @date_time)
+        ";
+        
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new("user_email", Email), new("song_id", songId), new("date_time", DateTime.Now)}
+        };
+
+        command.ExecuteNonQuery();
+    }
+
     private static byte[] HashPassword(String password)
     {
         const string salt = "Music4U";
@@ -208,23 +223,18 @@ public class User
                 {
                     Console.WriteLine("Search Results:");
                     while (reader.Read())
-                        {
-                            Console.WriteLine($"Title: {reader["title"]}, Duration: {reader["time"]}, Release Date: {reader["release_data"]}, ");
-                        }
+                    {
+                        Console.WriteLine($"Title: {reader["title"]}, Duration: {reader["time"]}, Release Date: {reader["release_data"]}, ");
                     }
                 }
-                
             }
-            
-
+            catch(Exception e) {}
+                
         }
-
-
-        
-
-
+            
     }
 }
+
 
 public class DuplicateException : Exception
 {
