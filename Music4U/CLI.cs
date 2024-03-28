@@ -165,7 +165,7 @@ public abstract record Command()
                 return;
             }
 
-            Console.Write($"Welcome, {cli.CurrentUser.Username}!");
+            Console.WriteLine($"Welcome, {cli.CurrentUser.Username}!");
         }
     }
 
@@ -179,11 +179,21 @@ public abstract record Command()
                 return;
             }
 
-            // TODO: implement login
             var email = Input.GetNonEmpty("Email: ");
             var password = Input.GetNonEmpty("Password: ");
 
-            Console.WriteLine("Login not implemented yet.");
+            try
+            {
+                cli.CurrentUser = User.Login(cli.Conn, email, password);
+
+            }
+            catch (InvalidCredentialsException e)
+            {
+                Console.WriteLine(e.Message);
+                return;
+            }
+
+            Console.WriteLine($"Welcome, {cli.CurrentUser.Username}.");
         }
     }
 
