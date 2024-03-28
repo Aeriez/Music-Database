@@ -69,7 +69,8 @@ public class User
 
     private static byte[] HashPassword(String password)
     {
-        return SHA256.HashData(Encoding.UTF8.GetBytes(password));
+        const string salt = "Music4U";
+        return SHA256.HashData(Encoding.UTF8.GetBytes(password + salt));
     }
 }
 
