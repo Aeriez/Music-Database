@@ -323,6 +323,7 @@ public abstract record Command()
             {
                 "list" => new PlaylistCommand.List(),
                 "create" => new PlaylistCommand.Create(),
+                "rename" => PlaylistCommand.Rename.Parse(args),
                 "delete" => PlaylistCommand.Delete.Parse(args),
                 "add" => PlaylistCommand.Add.Parse(args),
                 "remove" => PlaylistCommand.Remove.Parse(args),
@@ -378,6 +379,32 @@ public abstract record PlaylistCommand()
         {
             var name = Input.GetNonEmpty("Name: ");
             // TODO
+        }
+    }
+
+    public record Rename(int PlaylistId) : PlaylistCommand
+    {
+        public override void Execute(NpgsqlConnection conn, User user)
+        {
+            var newName = Input.GetNonEmpty("New name: ");
+            // TODO
+        }
+
+        public static Rename Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("Playlist rename command requires at least one argument.");
+            }
+
+            if (int.TryParse(args.Current, out var id))
+            {
+                return new Rename(id);
+            }
+            else
+            {
+                throw new CommandParserException($"Invalid playlist id: {args.Current}");
+            }
         }
     }
 
