@@ -52,6 +52,8 @@ public class CLI(NpgsqlConnection conn)
             "login" => new Command.Login(),
             "logout" => new Command.Logout(),
             "search" => ParseSearchCommand(args),
+            "follow" => ParseFollowCommand(args),
+            "unfollow" => ParseUnfollowCommand(args),
             "quit" => new Command.Quit(),
             _ => throw new CommandParserException($"Unknown command: {args.Current}"),
         };
@@ -94,6 +96,26 @@ public class CLI(NpgsqlConnection conn)
         }
 
         return type;
+    }
+
+    private static Command.Follow ParseFollowCommand(IEnumerator<string> args)
+    {
+        if (!args.MoveNext())
+        {
+            throw new CommandParserException("Follow command requires at least one argument.");
+        }
+
+        return new Command.Follow(args.Current);
+    }
+
+    private static Command.Unfollow ParseUnfollowCommand(IEnumerator<string> args)
+    {
+        if (!args.MoveNext())
+        {
+            throw new CommandParserException("Unfollow command requires at least one argument.");
+        }
+
+        return new Command.Unfollow(args.Current);
     }
 }
 
@@ -165,7 +187,7 @@ public abstract record Command()
                 return;
             }
 
-            Console.Write($"Welcome, {cli.CurrentUser.Username}!");
+            Console.WriteLine($"Welcome, {cli.CurrentUser.Username}!");
         }
     }
 
@@ -179,11 +201,21 @@ public abstract record Command()
                 return;
             }
 
-            // TODO: implement login
             var email = Input.GetNonEmpty("Email: ");
             var password = Input.GetNonEmpty("Password: ");
 
-            Console.WriteLine("Login not implemented yet.");
+            try
+            {
+                cli.CurrentUser = User.Login(cli.Conn, email, password);
+
+            }
+            catch (InvalidCredentialsException e)
+            {
+                Console.WriteLine(e.Message);
+                return;
+            }
+
+            Console.WriteLine($"Welcome, {cli.CurrentUser.Username}.");
         }
     }
 
@@ -218,6 +250,49 @@ public abstract record Command()
                 Console.WriteLine("Searching for songs...");
                 Console.WriteLine("Not implemented yet.");
             }
+        }
+    }
+
+    public record Follow(string Email) : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            if (cli.CurrentUser == null)
+            {
+                Console.WriteLine("You are not logged in.");
+                return;
+            }
+
+            try
+            {
+                if (cli.CurrentUser.FollowUser(cli.Conn, Email))
+                {
+                    Console.WriteLine($"You are now following {Email}.");
+                }
+                else
+                {
+                    Console.WriteLine($"You are already following {Email}.");
+                }
+            }
+            catch (UserNotFoundException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
+    }
+
+    public record Unfollow(string Email) : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            if (cli.CurrentUser == null)
+            {
+                Console.WriteLine("You are not logged in.");
+                return;
+            }
+
+            cli.CurrentUser.UnfollowUser(cli.Conn, Email);
+            Console.WriteLine($"You are no longer following {Email}.");
         }
     }
 

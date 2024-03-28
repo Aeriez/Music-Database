@@ -68,9 +68,115 @@ public class User
         }
     }
 
+    /// <summary>
+    /// Login a user into the database.
+    /// </summary>
+    /// <returns>The logged in user.</returns>
+    /// <exception cref="InvalidCredentialsException">If the email or password is invalid.</exception>
+    public static User Login(NpgsqlConnection conn, string email, string password)
+    {
+        var hash = HashPassword(password);
+
+        const string getUserSql = @"
+            SELECT user_name, first_name, last_name, creation_date
+            FROM users
+            WHERE user_email = @email AND password = @password
+        ";
+
+        using var command = new NpgsqlCommand(getUserSql, conn)
+        {
+            Parameters = { new("email", email), new("password", hash) }
+        };
+
+        using var reader = command.ExecuteReader();
+
+        if (!reader.HasRows)
+        {
+            throw new InvalidCredentialsException($"Invalid email or password.");
+        }
+
+        var username = reader.GetString(0);
+        var firstName = reader.GetString(1);
+        var lastName = reader.GetString(2);
+        var creationDate = DateOnly.FromDateTime(reader.GetDateTime(3));
+
+        var now = DateTime.Now;
+
+        const string updateLastAccessSql = @"
+            UPDATE users
+            SET last_accessed = @last_access
+            WHERE user_email = @email
+        ";
+
+        using var updateLastAccessCommand = new NpgsqlCommand(updateLastAccessSql, conn)
+        {
+            Parameters = { new("email", email), new("last_access", now) }
+        };
+
+        updateLastAccessCommand.ExecuteNonQuery();
+
+        return new User(email, username, firstName, lastName, creationDate, DateTime.Now);
+    }
+
+    /// <summary>
+    /// Follows a user.
+    /// </summary>
+    /// <returns>True if the user was successfully followed. False if the user was already followed.</returns>
+    /// <exception cref="UserNotFoundException">If the user was not found.</exception>
+    public bool FollowUser(NpgsqlConnection conn, string friend_email)
+    {
+        const string sql = @"
+            INSERT INTO friends (user_email, friend_email)
+            VALUES (@user_email, @friend_email)
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new("user_email", Email), new("friend_email", friend_email) }
+        };
+
+        try
+        {
+            command.ExecuteNonQuery();
+        }
+
+        catch (PostgresException e)
+        {
+            if (e.SqlState == PostgresErrorCodes.UniqueViolation)
+            {
+                return false;
+            }
+            else if (e.SqlState == PostgresErrorCodes.ForeignKeyViolation)
+            {
+                throw new UserNotFoundException($"User with email {friend_email} not found.", e);
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Unfollows a user.
+    /// </summary>
+    public void UnfollowUser(NpgsqlConnection conn, string friend_email)
+    {
+        const string sql = @"
+            DELETE FROM friends
+            WHERE user_email = @user_email AND friend_email = @friend_email
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new("user_email", Email), new("friend_email", friend_email) }
+        };
+
+        command.ExecuteNonQuery();
+    }
+
     private static byte[] HashPassword(String password)
     {
-        return SHA256.HashData(Encoding.UTF8.GetBytes(password));
+        const string salt = "Music4U";
+        return SHA256.HashData(Encoding.UTF8.GetBytes(password + salt));
     }
 
     private static void createCollection(Collection id, Collection user_email, Collection name)
@@ -125,4 +231,18 @@ public class DuplicateException : Exception
     public DuplicateException() { }
     public DuplicateException(string message) : base(message) { }
     public DuplicateException(string message, Exception inner) : base(message, inner) { }
+}
+
+public class InvalidCredentialsException : Exception
+{
+    public InvalidCredentialsException() { }
+    public InvalidCredentialsException(string message) : base(message) { }
+    public InvalidCredentialsException(string message, Exception inner) : base(message, inner) { }
+}
+
+public class UserNotFoundException : Exception
+{
+    public UserNotFoundException() { }
+    public UserNotFoundException(string message) : base(message) { }
+    public UserNotFoundException(string message, Exception inner) : base(message, inner) { }
 }
