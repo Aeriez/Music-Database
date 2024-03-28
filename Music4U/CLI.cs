@@ -81,10 +81,7 @@ public class CLI(NpgsqlConnection conn)
             _ => throw new CommandParserException($"Unknown search target: {args.Current}"),
         };
 
-        // Accept search term as argument, or prompt
-        var searchTerm = args.MoveNext() ? args.Current : Input.GetNonEmpty("Search: ");
-
-        return new Command.Search(target, searchTerm);
+        return new Command.Search(target);
     }
 
     private static SongSearchType ParseSongSearchType(IEnumerator<string> args)
@@ -129,7 +126,7 @@ public class CLI(NpgsqlConnection conn)
         PlaylistCommand command = args.Current.ToLower() switch
         {
             "list" => new PlaylistCommand.List(),
-            "create" => new PlaylistCommand.Create(args.MoveNext() ? args.Current : null),
+            "create" => new PlaylistCommand.Create(),
             "delete" => ParsePlaylistDeleteCommand(args),
             "add" => ParsePlaylistAddCommand(args),
             "remove" => ParsePlaylistRemoveCommand(args),
@@ -310,13 +307,15 @@ public abstract record Command()
         }
     }
 
-    public record Search(SearchTarget Target, string SearchTerm) : Command
+    public record Search(SearchTarget Target) : Command
     {
         public override void Execute(CLI cli)
         {
+            var searchTerm = Input.GetNonEmpty("Search: ");
+
             if (Target is SearchTarget.User)
             {
-                Console.WriteLine($"Searching for users with email containing '{SearchTerm}'...");
+                Console.WriteLine($"Searching for users with email containing '{searchTerm}'...");
                 Console.WriteLine("Not implemented yet.");
             }
             else if (Target is SearchTarget.Song(var searchType))
@@ -423,10 +422,11 @@ public abstract record PlaylistCommand()
         }
     }
 
-    public record Create(string? PlaylistName) : PlaylistCommand
+    public record Create() : PlaylistCommand
     {
         public override void Execute(NpgsqlConnection conn, User user)
         {
+            var name = Input.GetNonEmpty("Name: ");
             // TODO
         }
     }
