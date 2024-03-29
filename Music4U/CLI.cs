@@ -225,7 +225,7 @@ public abstract record Command()
                     Console.WriteLine($"Found {songs.Count} songs:");
                     foreach (var song in songs)
                     {
-                        Console.WriteLine($"{song.Title} by {song.ArtistNames} ({song.Time}) in {song.AlbumNames} ({song.ListenCount} listens)");
+                        Console.WriteLine($"{song.Id}: {song.Title} by {song.ArtistNames} ({song.Time}) in {song.AlbumNames} ({song.ListenCount} listens)");
                     }
                 }
             }
