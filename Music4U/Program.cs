@@ -23,4 +23,5 @@ while (cli.IsRunning)
 {
     var input = Input.Get("Music4U> ");
     cli.Execute(input);
+    Console.WriteLine(); // add a blank line after each command
 }
