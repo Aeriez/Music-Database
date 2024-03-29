@@ -233,7 +233,6 @@ public class User
         const string sql = @"
             INSERT INTO collection (user_email, name)
             VALUES (@user_email, @name)
-            returning id
         ";
 
         using var command = new NpgsqlCommand(sql, conn)
@@ -241,11 +240,40 @@ public class User
             Parameters = { new NpgsqlParameter("user_email", Email), new NpgsqlParameter("name", name) }
         };
 
-        var collectionId = (int)command.ExecuteScalar();
+        command.ExecuteNonQuery();
     }
 
-    public void AddSongToCollection(NpgsqlConnection conn, int collectionId, string songId)
+    public bool OwnsCollection(NpgsqlConnection conn, int collectionId)
     {
+        const string sql = @"
+            SELECT EXISTS (
+                SELECT 1
+                FROM collection
+                WHERE id = @collection_id AND user_email = @user_email
+            )
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("user_email", Email) }
+        };
+
+        var result = command.ExecuteScalar();
+
+        return result != null && (bool)result;
+    }
+
+    /// <summary>
+    /// Adds a song to a collection.
+    /// </summary>
+    /// <returns>True if the song was successfully added. False if the song or collection was not found.</returns>
+    public bool AddSongToCollection(NpgsqlConnection conn, int collectionId, string songId)
+    {
+        if (!OwnsCollection(conn, collectionId))
+        {
+            throw new InvalidCollectionException("You do not own this playlist.");
+        }
+
         const string sql = @"
             INSERT INTO collection_contains_song (collection_id, song_id)
             VALUES (@collection_id, @song_id)
@@ -256,14 +284,33 @@ public class User
             Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("song_id", songId) }
         };
 
-        command.ExecuteNonQuery();
+        try
+        {
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException e)
+        {
+            if (e.SqlState == PostgresErrorCodes.ForeignKeyViolation)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public void AddAlbumToCollection(NpgsqlConnection conn, int collectionId, string albumId)
     {
+        if (!OwnsCollection(conn, collectionId))
+        {
+            throw new InvalidCollectionException("You do not own this playlist.");
+        }
+
         const string sql = @"
-            INSERT INTO collection_contains_album (collection_id, album_id)
-            VALUES (@collection_id, @album_id)
+            INSERT INTO collection_contains_song (collection_id, song_id)
+            SELECT @collection_id, saia.song_id
+            FROM song_appears_in_album saia
+            WHERE acs.album_id = @album_id
         ";
 
         using var command = new NpgsqlCommand(sql, conn)
@@ -276,6 +323,11 @@ public class User
 
     public void DeleteSongFromCollection(NpgsqlConnection conn, int collectionId, string songId)
     {
+        if (!OwnsCollection(conn, collectionId))
+        {
+            throw new InvalidCollectionException("You do not own this playlist.");
+        }
+
         const string sql = @"
             DELETE FROM collection_contains_song
             WHERE collection_id = @collection_id AND song_id = @song_id
@@ -291,9 +343,18 @@ public class User
 
     public void DeleteAlbumFromCollection(NpgsqlConnection conn, int collectionId, string albumId)
     {
+        if (!OwnsCollection(conn, collectionId))
+        {
+            throw new InvalidCollectionException("You do not own this playlist.");
+        }
+
         const string sql = @"
-            DELETE FROM collection_contains_album
-            WHERE collection_id = @collection_id AND album_id = @album_id
+            DELETE FROM collection_contains_song
+            WHERE collection_id = @collection_id AND song_id IN (
+                SELECT song_id
+                FROM song_appears_in_album
+                WHERE album_id = @album_id
+            )
         ";
 
         using var command = new NpgsqlCommand(sql, conn)
@@ -306,6 +367,11 @@ public class User
 
     public void ChangeCollectionName(NpgsqlConnection conn, int collectionId, string newName)
     {
+        if (!OwnsCollection(conn, collectionId))
+        {
+            throw new InvalidCollectionException("You do not own this playlist.");
+        }
+
         const string sql = @"
             UPDATE collection
             SET name = @newName
@@ -322,6 +388,11 @@ public class User
 
     public void DeleteCollection(NpgsqlConnection conn, int collectionId)
     {
+        if (!OwnsCollection(conn, collectionId))
+        {
+            throw new InvalidCollectionException("You do not own this playlist.");
+        }
+
         const string sql = @"
             DELETE FROM collection
             WHERE id = @collection_id
@@ -335,32 +406,38 @@ public class User
         command.ExecuteNonQuery();
     }
 
-    public static List<(string Name, int NumberOfSongs, int TotalDurationMinutes)> ListCollections(NpgsqlConnection conn)
+    public List<Collection> ListCollections(NpgsqlConnection conn)
     {
         const string sql = @"
-            SELECT c.name, COUNT(ccs.song_id) AS number_of_songs,
-                TO_CHAR(INTERVAL '1 second' * SUM(EXTRACT(EPOCH FROM s.time)::int), 'HH24:MI:SS') AS total_duration
+            SELECT
+                c.collection_id,
+                c.name,
+                COUNT(s.song_id) AS song_count,
+                COALESCE(SUM(s.time), interval '0 seconds') as duration
             FROM collection c
-            LEFT JOIN collection_contains_song ccs ON c.id = ccs.collection_id
-            LEFT JOIN songs s ON ccs.song_id = s.id
-            GROUP BY c.id, c.name
+            LEFT JOIN collection_contains_song ccs ON ccs.collection_id = c.collection_id
+            LEFT JOIN song s ON s.song_id = ccs.song_id
+            WHERE c.user_email = @user_email
+            GROUP BY c.collection_id, c.name
             ORDER BY c.name ASC
         ";
 
-        var collections = new List<(string Name, int NumberOfSongs, int TotalDurationMinutes)>();
+        var collections = new List<Collection>();
 
-        using var command = new NpgsqlCommand(sql, conn);
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("user_email", Email) }
+        };
         using var reader = command.ExecuteReader();
 
         while (reader.Read())
         {
-            var collectionInfo = (
-                Name: reader.GetString(0),
-                NumberOfSongs: reader.GetInt32(1),
-                TotalDurationMinutes: reader.GetInt32(2)
-            );
-
-            collections.Add(collectionInfo);
+            collections.Add(new Collection(
+                reader.GetInt32(0),
+                reader.GetString(1),
+                reader.GetInt32(2),
+                reader.GetTimeSpan(3)
+            ));
         }
 
         return collections;
@@ -388,4 +465,11 @@ public class UserNotFoundException : Exception
     public UserNotFoundException() { }
     public UserNotFoundException(string message) : base(message) { }
     public UserNotFoundException(string message, Exception inner) : base(message, inner) { }
+}
+
+public class InvalidCollectionException : Exception
+{
+    public InvalidCollectionException() { }
+    public InvalidCollectionException(string message) : base(message) { }
+    public InvalidCollectionException(string message, Exception inner) : base(message, inner) { }
 }
