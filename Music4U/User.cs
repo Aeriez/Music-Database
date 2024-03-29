@@ -237,7 +237,10 @@ public class User
 
         using var command = new NpgsqlCommand(sql, conn)
         {
-            Parameters = { new NpgsqlParameter("user_email", Email), new NpgsqlParameter("name", name) }
+            Parameters = {
+                new("user_email", Email),
+                new("name", name),
+            }
         };
 
         command.ExecuteNonQuery();
@@ -255,7 +258,10 @@ public class User
 
         using var command = new NpgsqlCommand(sql, conn)
         {
-            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("user_email", Email) }
+            Parameters = {
+                new("collection_id", collectionId),
+                new("user_email", Email),
+            }
         };
 
         var result = command.ExecuteScalar();
@@ -267,7 +273,7 @@ public class User
     /// Adds a song to a collection.
     /// </summary>
     /// <returns>True if the song was successfully added. False if the song or collection was not found.</returns>
-    public bool AddSongToCollection(NpgsqlConnection conn, int collectionId, string songId)
+    public bool AddSongToCollection(NpgsqlConnection conn, int collectionId, int songId)
     {
         if (!OwnsCollection(conn, collectionId))
         {
@@ -281,7 +287,10 @@ public class User
 
         using var command = new NpgsqlCommand(sql, conn)
         {
-            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("song_id", songId) }
+            Parameters = {
+                new("collection_id", collectionId),
+                new("song_id", songId),
+            }
         };
 
         try
@@ -299,7 +308,7 @@ public class User
         return true;
     }
 
-    public void AddAlbumToCollection(NpgsqlConnection conn, int collectionId, string albumId)
+    public void AddAlbumToCollection(NpgsqlConnection conn, int collectionId, int albumId)
     {
         if (!OwnsCollection(conn, collectionId))
         {
@@ -321,7 +330,7 @@ public class User
         command.ExecuteNonQuery();
     }
 
-    public void DeleteSongFromCollection(NpgsqlConnection conn, int collectionId, string songId)
+    public void DeleteSongFromCollection(NpgsqlConnection conn, int collectionId, int songId)
     {
         if (!OwnsCollection(conn, collectionId))
         {
@@ -335,13 +344,16 @@ public class User
 
         using var command = new NpgsqlCommand(sql, conn)
         {
-            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("song_id", songId) }
+            Parameters = {
+                new("collection_id", collectionId),
+                new("song_id", songId),
+            }
         };
 
         command.ExecuteNonQuery();
     }
 
-    public void DeleteAlbumFromCollection(NpgsqlConnection conn, int collectionId, string albumId)
+    public void DeleteAlbumFromCollection(NpgsqlConnection conn, int collectionId, int albumId)
     {
         if (!OwnsCollection(conn, collectionId))
         {
@@ -359,7 +371,10 @@ public class User
 
         using var command = new NpgsqlCommand(sql, conn)
         {
-            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("album_id", albumId) }
+            Parameters = {
+                new("collection_id", collectionId),
+                new("album_id", albumId),
+            }
         };
 
         command.ExecuteNonQuery();
@@ -375,12 +390,15 @@ public class User
         const string sql = @"
             UPDATE collection
             SET name = @newName
-            WHERE id = @collection_id
+            WHERE collection_id = @collection_id
         ";
 
         using var command = new NpgsqlCommand(sql, conn)
         {
-            Parameters = { new NpgsqlParameter("newName", newName), new NpgsqlParameter("collection_id", collectionId) }
+            Parameters = {
+                new("newName", newName),
+                new("collection_id", collectionId)
+            }
         };
 
         command.ExecuteNonQuery();
@@ -395,12 +413,12 @@ public class User
 
         const string sql = @"
             DELETE FROM collection
-            WHERE id = @collection_id
+            WHERE collection_id = @collection_id
         ";
 
         using var command = new NpgsqlCommand(sql, conn)
         {
-            Parameters = { new NpgsqlParameter("collection_id", collectionId) }
+            Parameters = { new("collection_id", collectionId) }
         };
 
         command.ExecuteNonQuery();
@@ -426,7 +444,7 @@ public class User
 
         using var command = new NpgsqlCommand(sql, conn)
         {
-            Parameters = { new NpgsqlParameter("user_email", Email) }
+            Parameters = { new("user_email", Email) }
         };
         using var reader = command.ExecuteReader();
 

@@ -337,7 +337,14 @@ public abstract record Command()
                 return;
             }
 
-            Command.Execute(cli.Conn, cli.CurrentUser);
+            try
+            {
+                Command.Execute(cli.Conn, cli.CurrentUser);
+            }
+            catch (InvalidCollectionException e)
+            {
+                Console.WriteLine(e.Message);
+            }
         }
 
         public static Playlist Parse(IEnumerator<string> args)
@@ -451,7 +458,18 @@ public abstract record PlaylistCommand()
     {
         public override void Execute(NpgsqlConnection conn, User user)
         {
-            // TODO
+            var playlists = user.ListCollections(conn);
+
+            if (playlists.Count == 0)
+            {
+                Console.WriteLine("You have no playlists.");
+                return;
+            }
+
+            foreach (var playlist in playlists)
+            {
+                Console.WriteLine($"{playlist.Id}: {playlist.Name} ({playlist.SongCount} songs, {playlist.Duration})");
+            }
         }
     }
 
@@ -460,7 +478,8 @@ public abstract record PlaylistCommand()
         public override void Execute(NpgsqlConnection conn, User user)
         {
             var name = Input.GetNonEmpty("Name: ");
-            // TODO
+            user.CreateCollection(conn, name);
+            Console.WriteLine($"Playlist {name} created.");
         }
     }
 
@@ -469,7 +488,8 @@ public abstract record PlaylistCommand()
         public override void Execute(NpgsqlConnection conn, User user)
         {
             var newName = Input.GetNonEmpty("New name: ");
-            // TODO
+            user.ChangeCollectionName(conn, PlaylistId, newName);
+            Console.WriteLine($"Playlist {PlaylistId} renamed to {newName}.");
         }
 
         public static Rename Parse(IEnumerator<string> args)
@@ -494,7 +514,8 @@ public abstract record PlaylistCommand()
     {
         public override void Execute(NpgsqlConnection conn, User user)
         {
-            // TODO
+            user.DeleteCollection(conn, PlaylistId);
+            Console.WriteLine($"Playlist {PlaylistId} deleted.");
         }
 
         public static Delete Parse(IEnumerator<string> args)
@@ -519,7 +540,8 @@ public abstract record PlaylistCommand()
     {
         public override void Execute(NpgsqlConnection conn, User user)
         {
-            // TODO
+            user.AddSongToCollection(conn, PlaylistId, SongId);
+            Console.WriteLine("Song added to playlist.");
         }
 
         public static Add Parse(IEnumerator<string> args)
@@ -550,7 +572,8 @@ public abstract record PlaylistCommand()
     {
         public override void Execute(NpgsqlConnection conn, User user)
         {
-            // TODO
+            user.DeleteSongFromCollection(conn, PlaylistId, SongId);
+            Console.WriteLine("Song removed from playlist.");
         }
 
         public static Remove Parse(IEnumerator<string> args)
