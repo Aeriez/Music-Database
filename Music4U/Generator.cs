@@ -162,7 +162,7 @@ public class Generator
         }
 
         var album = RandomAlbum();
-        var songCount = random.Next(2) * random.Next(4) + 2;
+        var songCount = random.Next(3) * random.Next(5) + 3;
 
         var songs = new string[songCount];
 
