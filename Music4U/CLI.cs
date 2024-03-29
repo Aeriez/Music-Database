@@ -55,6 +55,7 @@ public class CLI(NpgsqlConnection conn)
             "follow" => Command.Follow.Parse(args),
             "unfollow" => Command.Unfollow.Parse(args),
             "playlist" => Command.Playlist.Parse(args),
+            "play" => Command.Play.Parse(args),
             "quit" => new Command.Quit(),
             _ => throw new CommandParserException($"Unknown command: {args.Current}"),
         };
@@ -359,6 +360,60 @@ public abstract record Command()
 
             return new Command.Playlist(command);
         }
+    }
+
+    public record Play(PlayTarget Target, int Id) : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            if (cli.CurrentUser == null)
+            {
+                Console.WriteLine("You are not logged in.");
+                return;
+            }
+
+            switch (Target)
+            {
+                case PlayTarget.Playlist:
+                    // TODO
+                    break;
+                case PlayTarget.Song:
+                    cli.CurrentUser.PlaySong(cli.Conn, Id);
+                    Console.WriteLine("Song played.");
+                    break;
+            }
+        }
+
+        public static Play Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("Play command requires 2 arguments.");
+            }
+
+            if (!Enum.TryParse(args.Current, true, out PlayTarget target))
+            {
+                throw new CommandParserException($"Unknown play target: {args.Current}");
+            }
+
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("Play command requires 2 arguments.");
+            }
+
+            if (!int.TryParse(args.Current, out int id))
+            {
+                throw new CommandParserException($"Unknown id: {args.Current}");
+            }
+
+            return new Play(target, id);
+        }
+    }
+
+    public enum PlayTarget
+    {
+        Playlist,
+        Song,
     }
 
     public record Quit() : Command

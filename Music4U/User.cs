@@ -207,7 +207,7 @@ public class User
         command.ExecuteNonQuery();
     }
 
-    public void PlaySong(NpgsqlConnection conn, string songId)
+    public void PlaySong(NpgsqlConnection conn, int songId)
     {
         string sql = @"
             INSERT INTO user_listens_to_song (user_email, song_id, date_time)
