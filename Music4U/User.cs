@@ -334,6 +334,38 @@ public class User
 
         command.ExecuteNonQuery();
     }
+
+    public static List<(string Name, int NumberOfSongs, int TotalDurationMinutes)> ListCollections(NpgsqlConnection conn)
+    {
+        const string sql = @"
+            SELECT c.name, COUNT(ccs.song_id) AS number_of_songs,
+                TO_CHAR(INTERVAL '1 second' * SUM(EXTRACT(EPOCH FROM s.time)::int), 'HH24:MI:SS') AS total_duration
+            FROM collection c
+            LEFT JOIN collection_contains_song ccs ON c.id = ccs.collection_id
+            LEFT JOIN songs s ON ccs.song_id = s.id
+            GROUP BY c.id, c.name
+            ORDER BY c.name ASC
+        ";
+
+        var collections = new List<(string Name, int NumberOfSongs, int TotalDurationMinutes)>();
+
+        using var command = new NpgsqlCommand(sql, conn);
+        using var reader = command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var collectionInfo = (
+                Name: reader.GetString(0),
+                NumberOfSongs: reader.GetInt32(1),
+                TotalDurationMinutes: reader.GetInt32(2)
+            );
+
+            collections.Add(collectionInfo);
+        }
+
+        return collections;
+    }
+
 }
 
 
