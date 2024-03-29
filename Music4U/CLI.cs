@@ -440,6 +440,12 @@ public abstract record SearchTarget()
     public record Song(SongSearchType SearchType) : SearchTarget;
 }
 
+public enum SongOrAlbum
+{
+    Song,
+    Album,
+}
+
 public enum SongSearchType
 {
     Name,
@@ -537,23 +543,41 @@ public abstract record PlaylistCommand()
         }
     }
 
-    public record Add(int PlaylistId, int SongId) : PlaylistCommand
+    public record Add(SongOrAlbum Target, int PlaylistId, int Id) : PlaylistCommand
     {
         public override void Execute(NpgsqlConnection conn, User user)
         {
-            user.AddSongToCollection(conn, PlaylistId, SongId);
-            Console.WriteLine("Song added to playlist.");
+            switch (Target)
+            {
+                case SongOrAlbum.Song:
+                    user.AddSongToCollection(conn, PlaylistId, Id);
+                    Console.WriteLine("Song added to playlist.");
+                    break;
+                case SongOrAlbum.Album:
+                    user.AddAlbumToCollection(conn, PlaylistId, Id);
+                    Console.WriteLine("Album added to playlist.");
+                    break;
+            }
         }
 
         public static Add Parse(IEnumerator<string> args)
         {
+            var targetRaw = args.MoveNext()
+                ? args.Current
+                : throw new CommandParserException("Playlist add command requires three arguments.");
+
             var playlistIdRaw = args.MoveNext()
                 ? args.Current
-                : throw new CommandParserException("Playlist add command requires two arguments.");
+                : throw new CommandParserException("Playlist add command requires three arguments.");
 
             var songIdRaw = args.MoveNext()
                 ? args.Current
-                : throw new CommandParserException("Playlist add command requires two arguments.");
+                : throw new CommandParserException("Playlist add command requires three arguments.");
+
+            if (!Enum.TryParse(targetRaw, true, out SongOrAlbum target))
+            {
+                throw new CommandParserException($"Expected song or album, got: {targetRaw}");
+            }
 
             if (!int.TryParse(playlistIdRaw, out var playlistId))
             {
@@ -565,27 +589,45 @@ public abstract record PlaylistCommand()
                 throw new CommandParserException($"Invalid song id: {args.Current}");
             }
 
-            return new Add(playlistId, songId);
+            return new Add(target, playlistId, songId);
         }
     }
 
-    public record Remove(int PlaylistId, int SongId) : PlaylistCommand
+    public record Remove(SongOrAlbum Target, int PlaylistId, int Id) : PlaylistCommand
     {
         public override void Execute(NpgsqlConnection conn, User user)
         {
-            user.DeleteSongFromCollection(conn, PlaylistId, SongId);
-            Console.WriteLine("Song removed from playlist.");
+            switch (Target)
+            {
+                case SongOrAlbum.Song:
+                    user.DeleteSongFromCollection(conn, PlaylistId, Id);
+                    Console.WriteLine("Song removed from playlist.");
+                    break;
+                case SongOrAlbum.Album:
+                    user.DeleteAlbumFromCollection(conn, PlaylistId, Id);
+                    Console.WriteLine("Album removed from playlist.");
+                    break;
+            }
         }
 
         public static Remove Parse(IEnumerator<string> args)
         {
+            var targetRaw = args.MoveNext()
+                ? args.Current
+                : throw new CommandParserException("Playlist remove command requires three arguments.");
+
             var playlistIdRaw = args.MoveNext()
                 ? args.Current
-                : throw new CommandParserException("Playlist add command requires two arguments.");
+                : throw new CommandParserException("Playlist remove command requires three arguments.");
 
             var songIdRaw = args.MoveNext()
                 ? args.Current
-                : throw new CommandParserException("Playlist add command requires two arguments.");
+                : throw new CommandParserException("Playlist remove command requires three arguments.");
+
+            if (!Enum.TryParse(targetRaw, true, out SongOrAlbum target))
+            {
+                throw new CommandParserException($"Expected song or album, got: {targetRaw}");
+            }
 
             if (!int.TryParse(playlistIdRaw, out var playlistId))
             {
@@ -597,7 +639,7 @@ public abstract record PlaylistCommand()
                 throw new CommandParserException($"Invalid song id: {args.Current}");
             }
 
-            return new Remove(playlistId, songId);
+            return new Remove(target, playlistId, songId);
         }
     }
 }
