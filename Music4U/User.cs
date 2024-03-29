@@ -304,6 +304,7 @@ public class User
         const string sql = @"
             INSERT INTO collection_contains_song (collection_id, song_id)
             VALUES (@collection_id, @song_id)
+            ON CONFLICT DO NOTHING
         ";
 
         using var command = new NpgsqlCommand(sql, conn)
@@ -340,7 +341,8 @@ public class User
             INSERT INTO collection_contains_song (collection_id, song_id)
             SELECT @collection_id, saia.song_id
             FROM song_appears_in_album saia
-            WHERE acs.album_id = @album_id
+            WHERE saia.album_id = @album_id
+            ON CONFLICT DO NOTHING
         ";
 
         using var command = new NpgsqlCommand(sql, conn)
