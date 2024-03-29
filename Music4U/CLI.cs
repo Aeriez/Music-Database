@@ -226,7 +226,7 @@ public abstract record Command()
                     foreach (var song in songs)
                     {
                         Console.WriteLine($"{song.Id}: {song.Title} ({song.Time}) ({song.ListenCount} listens)");
-                        Console.WriteLine($"\tby {song.ArtistNames} (Album(s): {song.AlbumNames})");
+                        Console.WriteLine($"\tby {song.ArtistNames} in Album(s): {song.AlbumNames}");
                     }
                 }
             }

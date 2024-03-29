@@ -15,7 +15,7 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
                 SELECT
                     s.song_id,
                     COALESCE(string_agg(DISTINCT a.name, ', '), 'No Artist') AS artist_names,
-                    COALESCE(string_agg(DISTINCT al.name, ', '), 'No Album') AS album_names
+                    COALESCE(string_agg(al.name || ' (id ' || al.album_id || ')', ', '), 'No Album') AS album_names
                 FROM song s
                 LEFT JOIN artist_creates_song acs ON s.song_id = acs.song_id
                 LEFT JOIN artist a ON acs.artist_id = a.artist_id
@@ -60,7 +60,7 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
                 SELECT
                     s.song_id,
                     COALESCE(string_agg(DISTINCT a.name, ', '), 'No Artist') AS artist_names,
-                    COALESCE(string_agg(DISTINCT al.name, ', '), 'No Album') AS album_names
+                    COALESCE(string_agg(al.name || ' (id ' || al.album_id || ')', ', '), 'No Album') AS album_names
                 FROM song s
                 LEFT JOIN artist_creates_song acs ON s.song_id = acs.song_id
                 LEFT JOIN artist a ON acs.artist_id = a.artist_id
@@ -105,7 +105,7 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
                 SELECT
                     s.song_id,
                     COALESCE(string_agg(DISTINCT a.name, ', '), 'No Artist') AS artist_names,
-                    COALESCE(string_agg(DISTINCT al.name, ', '), 'No Album') AS album_names
+                    COALESCE(string_agg(al.name || ' (id ' || al.album_id || ')', ', '), 'No Album') AS album_names
                 FROM song s
                 LEFT JOIN artist_creates_song acs ON s.song_id = acs.song_id
                 LEFT JOIN artist a ON acs.artist_id = a.artist_id
@@ -150,7 +150,7 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
                 SELECT
                     s.song_id,
                     COALESCE(string_agg(DISTINCT a.name, ', '), 'No Artist') AS artist_names,
-                    COALESCE(string_agg(DISTINCT al.name, ', '), 'No Album') AS album_names
+                    COALESCE(string_agg(al.name || ' (id ' || al.album_id || ')', ', '), 'No Album') AS album_names
                 FROM song s
                 LEFT JOIN artist_creates_song acs ON s.song_id = acs.song_id
                 LEFT JOIN artist a ON acs.artist_id = a.artist_id
