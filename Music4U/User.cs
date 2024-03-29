@@ -222,6 +222,27 @@ public class User
         command.ExecuteNonQuery();
     }
 
+    public void PlayCollection(NpgsqlConnection conn, int collectionId)
+    {
+        string sql = @"
+            INSERT INTO user_listens_to_song (user_email, song_id, date_time)
+            SELECT @user_email, song_id, @date_time
+            FROM collection_contains_song
+            WHERE collection_id = @collection_id
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = {
+                new("user_email", Email),
+                new("collection_id", collectionId),
+                new("date_time", DateTime.Now),
+            }
+        };
+
+        command.ExecuteNonQuery();
+    }
+
     private static byte[] HashPassword(String password)
     {
         const string salt = "Music4U";

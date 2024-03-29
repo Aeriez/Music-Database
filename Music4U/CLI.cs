@@ -382,7 +382,8 @@ public abstract record Command()
             switch (Target)
             {
                 case PlayTarget.Playlist:
-                    // TODO
+                    cli.CurrentUser.PlayCollection(cli.Conn, Id);
+                    Console.WriteLine("Playlist played.");
                     break;
                 case PlayTarget.Song:
                     cli.CurrentUser.PlaySong(cli.Conn, Id);
