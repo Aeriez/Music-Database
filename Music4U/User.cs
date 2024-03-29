@@ -228,11 +228,144 @@ public class User
         return SHA256.HashData(Encoding.UTF8.GetBytes(password + salt));
     }
 
-    private static void createCollection(Collection id, Collection user_email, Collection name)
+    public void CreateCollection(NpgsqlConnection conn, string name)
     {
+        const string sql = @"
+            INSERT INTO collection (user_email, name)
+            VALUES (@user_email, @name)
+            returning id
+        ";
 
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("user_email", Email), new NpgsqlParameter("name", name) }
+        };
 
+        var collectionId = (int)command.ExecuteScalar();
     }
+
+    public void AddSongToCollection(NpgsqlConnection conn, int collectionId, string songId)
+    {
+        const string sql = @"
+            INSERT INTO collection_contains_song (collection_id, song_id)
+            VALUES (@collection_id, @song_id)
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("song_id", songId) }
+        };
+
+        command.ExecuteNonQuery();
+    }
+
+    public void AddAlbumToCollection(NpgsqlConnection conn, int collectionId, string albumId)
+    {
+        const string sql = @"
+            INSERT INTO collection_contains_album (collection_id, album_id)
+            VALUES (@collection_id, @album_id)
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("album_id", albumId) }
+        };
+
+        command.ExecuteNonQuery();
+    }
+
+    public void DeleteSongFromCollection(NpgsqlConnection conn, int collectionId, string songId)
+    {
+        const string sql = @"
+            DELETE FROM collection_contains_song
+            WHERE collection_id = @collection_id AND song_id = @song_id
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("song_id", songId) }
+        };
+
+        command.ExecuteNonQuery();
+    }
+
+    public void DeleteAlbumFromCollection(NpgsqlConnection conn, int collectionId, string albumId)
+    {
+        const string sql = @"
+            DELETE FROM collection_contains_album
+            WHERE collection_id = @collection_id AND album_id = @album_id
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("collection_id", collectionId), new NpgsqlParameter("album_id", albumId) }
+        };
+
+        command.ExecuteNonQuery();
+    }
+
+    public void ChangeCollectionName(NpgsqlConnection conn, int collectionId, string newName)
+    {
+        const string sql = @"
+            UPDATE collection
+            SET name = @newName
+            WHERE id = @collection_id
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("newName", newName), new NpgsqlParameter("collection_id", collectionId) }
+        };
+
+        command.ExecuteNonQuery();
+    }
+
+    public void DeleteCollection(NpgsqlConnection conn, int collectionId)
+    {
+        const string sql = @"
+            DELETE FROM collection
+            WHERE id = @collection_id
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new NpgsqlParameter("collection_id", collectionId) }
+        };
+
+        command.ExecuteNonQuery();
+    }
+
+    public static List<(string Name, int NumberOfSongs, int TotalDurationMinutes)> ListCollections(NpgsqlConnection conn)
+    {
+        const string sql = @"
+            SELECT c.name, COUNT(ccs.song_id) AS number_of_songs,
+                TO_CHAR(INTERVAL '1 second' * SUM(EXTRACT(EPOCH FROM s.time)::int), 'HH24:MI:SS') AS total_duration
+            FROM collection c
+            LEFT JOIN collection_contains_song ccs ON c.id = ccs.collection_id
+            LEFT JOIN songs s ON ccs.song_id = s.id
+            GROUP BY c.id, c.name
+            ORDER BY c.name ASC
+        ";
+
+        var collections = new List<(string Name, int NumberOfSongs, int TotalDurationMinutes)>();
+
+        using var command = new NpgsqlCommand(sql, conn);
+        using var reader = command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var collectionInfo = (
+                Name: reader.GetString(0),
+                NumberOfSongs: reader.GetInt32(1),
+                TotalDurationMinutes: reader.GetInt32(2)
+            );
+
+            collections.Add(collectionInfo);
+        }
+
+        return collections;
+    }
+
 }
 
 
