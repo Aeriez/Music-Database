@@ -16,6 +16,7 @@ public class Generator
         "Windy", "Stormy", "Disguised", "Shining", "Glowing", "Dazzling",
         "Glittering", "Dazzling", "Mystic", "Ethereal", "Amazing", "Tough",
         "Kind", "Benevolent", "Malevolent", "Honest", "Clever", "Brave",
+        "Blue", "Green", "Yellow", "Black", "White", "Red", "Purple",
     ];
 
     private static readonly string[] nouns = [
@@ -27,7 +28,8 @@ public class Generator
         "World", "Bread", "Blood", "Basket", "31 Puppies", "Toy",
         "War", "Avatar", "Crown", "Gold", "Silver", "Copper", "Brass",
         "Diamond", "Heart", "Mind", "Tax", "Goal", "Feeling", "Power",
-        "Me", "You", "Us", "Friend", "Enemy", "Hate", "King", "Queen"
+        "Me", "You", "Us", "Friend", "Enemy", "Hate", "King", "Queen",
+        "Whispers", "Journey", "Reflections", "Horizons", "Visions",
     ];
 
     private static readonly string[] separators = [
@@ -131,5 +133,57 @@ public class Generator
         var lastName = lastNames[random.Next(lastNames.Length)];
 
         return $"{firstName} {lastName}";
+    }
+
+    public static string RandomAlbum()
+    {
+        switch (random.Next(3))
+        {
+            case 0:
+                return adjectives[random.Next(adjectives.Length)];
+            case 1:
+                return nouns[random.Next(nouns.Length)];
+            default:
+                return RandomThingWithArticle();
+        }
+    }
+
+    public static (string, string[]) RandomAlbumWithSongs()
+    {
+        if (random.Next(5) == 0)
+        {
+            // Single
+            var song = RandomSong();
+            var albumName = (random.Next(3) == 0)
+                ? RandomAlbum()
+                : song;
+
+            return (albumName, [song]);
+        }
+
+        var album = RandomAlbum();
+        var songCount = random.Next(2) * random.Next(4) + 2;
+
+        var songs = new string[songCount];
+
+        for (int i = 0; i < songCount; i++)
+        {
+            songs[i] = RandomSong();
+        }
+
+        if (random.Next(3) == 0)
+        {
+            // random chance that the album name is the first or last song
+            if (random.Next(2) == 0)
+            {
+                songs[0] = album;
+            }
+            else
+            {
+                songs[songs.Length - 1] = album;
+            }
+        }
+
+        return (album, songs);
     }
 }
