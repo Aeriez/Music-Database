@@ -252,7 +252,7 @@ public class User
             SELECT EXISTS (
                 SELECT 1
                 FROM collection
-                WHERE id = @collection_id AND user_email = @user_email
+                WHERE collection_id = @collection_id AND user_email = @user_email
             )
         ";
 
