@@ -1,6 +1,6 @@
 using Npgsql;
 
-public record Profile(string Email, int CollectionCount, int Followers, int Following, List<(string, int)> TopArtists)
+public record Profile(string Email, long CollectionCount, long Followers, long Following, List<(string, int)> TopArtists)
 {
     public static Profile View(NpgsqlConnection conn, string email)
     {
@@ -10,12 +10,12 @@ public record Profile(string Email, int CollectionCount, int Followers, int Foll
             WHERE user_email = @user_email
         ";
 
-        int collectionCount;
+        long collectionCount;
         using (var command = new NpgsqlCommand(collectionSql, conn))
         {
             command.Parameters.Add(new("user_email", email));
             var result = command.ExecuteScalar();
-            collectionCount = result == null ? 0 : (int)result;
+            collectionCount = result == null ? 0 : (long)result;
         }
 
         const string followersSql = @"
@@ -24,12 +24,12 @@ public record Profile(string Email, int CollectionCount, int Followers, int Foll
             WHERE friend_email = @user_email
         ";
 
-        int followers;
+        long followers;
         using (var command = new NpgsqlCommand(followersSql, conn))
         {
             command.Parameters.Add(new("user_email", email));
             var result = command.ExecuteScalar();
-            followers = result == null ? 0 : (int)result;
+            followers = result == null ? 0 : (long)result;
         }
 
         const string followingSql = @"
@@ -38,12 +38,12 @@ public record Profile(string Email, int CollectionCount, int Followers, int Foll
             WHERE user_email = @user_email
         ";
 
-        int following;
+        long following;
         using (var command = new NpgsqlCommand(followingSql, conn))
         {
             command.Parameters.Add(new("user_email", email));
             var result = command.ExecuteScalar();
-            following = result == null ? 0 : (int)result;
+            following = result == null ? 0 : (long)result;
         }
 
         const string topArtistsSql = @"
