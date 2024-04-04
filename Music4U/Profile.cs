@@ -2,7 +2,7 @@ using Npgsql;
 
 public record Profile(string Email, int CollectionCount, int Followers, int Following, List<(string, int)> TopArtists)
 {
-    public Profile View(NpgsqlConnection conn, string email)
+    public static Profile View(NpgsqlConnection conn, string email)
     {
         const string collectionSql = @"
             SELECT COUNT(*) AS collection_count
