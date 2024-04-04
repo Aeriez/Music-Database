@@ -56,6 +56,7 @@ public class CLI(NpgsqlConnection conn)
             "unfollow" => Command.Unfollow.Parse(args),
             "playlist" => Command.Playlist.Parse(args),
             "play" => Command.Play.Parse(args),
+            "view" => Command.View.Parse(args),
             "quit" => new Command.Quit(),
             _ => throw new CommandParserException($"Unknown command: {args.Current}"),
         };
@@ -448,6 +449,16 @@ public abstract record Command()
             {
                 Console.WriteLine("No top artists.");
             }
+        }
+
+        public static View Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("View command expected email argument.");
+            }
+
+            return new View(args.Current);
         }
     }
 
