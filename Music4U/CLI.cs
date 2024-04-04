@@ -434,7 +434,7 @@ public abstract record Command()
 
             Console.WriteLine($"= Viewing profile for {profile.Email} =");
             Console.WriteLine($"Collection(s): {profile.CollectionCount}");
-            Console.WriteLine($"Followers: {profile.Followers}, Following: {profile.Following}");
+            Console.WriteLine($"Follower(s): {profile.Followers}, Following: {profile.Following}");
 
             if (profile.TopArtists.Count > 0)
             {
