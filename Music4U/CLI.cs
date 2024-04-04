@@ -425,6 +425,32 @@ public abstract record Command()
         Song,
     }
 
+    public record View(string Email) : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            var profile = Profile.View(cli.Conn, Email);
+
+            Console.WriteLine($"= Viewing profile for {profile.Email} =");
+            Console.WriteLine($"Collection(s): {profile.CollectionCount}");
+            Console.WriteLine($"Followers: {profile.Followers}, Following: {profile.Following}");
+
+            if (profile.TopArtists.Count > 0)
+            {
+                Console.WriteLine($"Top {profile.TopArtists.Count} artist(s):");
+                for (var i = 0; i < profile.TopArtists.Count; i++)
+                {
+                    var (name, count) = profile.TopArtists[i];
+                    Console.WriteLine($"{i + 1}. {name} - {count} listen(s)");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No top artists.");
+            }
+        }
+    }
+
     public record Quit() : Command
     {
         public override void Execute(CLI cli)
