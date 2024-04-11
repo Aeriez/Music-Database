@@ -175,6 +175,8 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
                 artists ASC
         ";
 
+
+
         var sql = searchType switch
         {
             SongSearchType.Name => nameSearchSql,
@@ -208,4 +210,41 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
 
         return songs;
     }
+
+    public static void getTop50MostPlayedSongs(NpgsqlConnection conn){
+        string sql = @"
+            SELECT SongId, COUNT(*) AS ListenCount
+            FROM UserListensToSong
+            WHERE DateTime >= DATEADD(day, -30, GETDATE())
+            GROUP BY SongId
+            ORDER BY ListenCount DESC
+            LIMIT 50;";
+           
+
+
+    
+
+        using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
+        {
+            command.Parameters.AddWithValue("query", $"%{sql.ToLower()}%");
+            using (NpgsqlDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    string songId = reader["SongId"].ToString();
+                    int listenCount = Convert.ToInt32(reader["ListenCount"]);   
+                    Console.WriteLine($"SongId: {songId}, ListenCount: {listenCount}");
+                }
+            }
+        };
+
+
+    
+    }
+
+    
+
+
+ 
 }
+
