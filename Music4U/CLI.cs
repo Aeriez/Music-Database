@@ -56,6 +56,7 @@ public class CLI(NpgsqlConnection conn)
             "unfollow" => Command.Unfollow.Parse(args),
             "playlist" => Command.Playlist.Parse(args),
             "play" => Command.Play.Parse(args),
+            "view" => Command.View.Parse(args),
             "quit" => new Command.Quit(),
             _ => throw new CommandParserException($"Unknown command: {args.Current}"),
         };
@@ -423,6 +424,42 @@ public abstract record Command()
     {
         Playlist,
         Song,
+    }
+
+    public record View(string Email) : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            var profile = Profile.View(cli.Conn, Email);
+
+            Console.WriteLine($"= Viewing profile for {profile.Email} =");
+            Console.WriteLine($"Collection(s): {profile.CollectionCount}");
+            Console.WriteLine($"Follower(s): {profile.Followers}, Following: {profile.Following}");
+
+            if (profile.TopArtists.Count > 0)
+            {
+                Console.WriteLine($"Top {profile.TopArtists.Count} artist(s):");
+                for (var i = 0; i < profile.TopArtists.Count; i++)
+                {
+                    var (name, count) = profile.TopArtists[i];
+                    Console.WriteLine($"{i + 1}. {name} - {count} listen(s)");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No top artists.");
+            }
+        }
+
+        public static View Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("View command expected email argument.");
+            }
+
+            return new View(args.Current);
+        }
     }
 
     public record Quit() : Command
