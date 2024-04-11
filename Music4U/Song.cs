@@ -242,6 +242,34 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
     
     }
 
+
+    public static void getTop50MostPopularSongsAmongFriends(NpgsqlConnection conn)
+{
+    string sql = @"
+        SELECT s.Song_Id, s.Title, COUNT(*) AS Popularity
+        FROM User_Listens_To_Song ul
+        JOIN Friends f ON ul.User_Email = f.Friend_Email
+        JOIN Song s ON ul.Song_Id = s.Song_Id
+        GROUP BY s.Song_Id, s.Title
+        ORDER BY Popularity DESC
+        LIMIT 50;";
+
+    using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
+    {
+        using (NpgsqlDataReader reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                string songId = reader["Song_Id"].ToString();
+                string title = reader["Title"].ToString();
+                int popularity = Convert.ToInt32(reader["Popularity"]);
+
+                Console.WriteLine($"SongId: {songId}, Title: {title}, Popularity: {popularity}");
+            }
+        }
+    }
+}
+
     
 
 
