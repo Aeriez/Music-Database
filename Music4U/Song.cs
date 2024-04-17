@@ -233,36 +233,33 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
         return songs;
     }
 
-    public static void getTop50MostPopularSongsAmongFriends(NpgsqlConnection conn)
-{
-    string sql = @"
-        SELECT s.Song_Id, s.Title, COUNT(*) AS Popularity
-        FROM User_Listens_To_Song ul
-        JOIN Friends f ON ul.User_Email = f.Friend_Email
-        JOIN Song s ON ul.Song_Id = s.Song_Id
-        GROUP BY s.Song_Id, s.Title
-        ORDER BY Popularity DESC
-        LIMIT 50;";
-
-    using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
+    public static List<(int, string, int)> GetTop50MostPopularSongsAmongFriends(NpgsqlConnection conn, string userEmail)
     {
-        using (NpgsqlDataReader reader = command.ExecuteReader())
+        string sql = @"
+            SELECT s.song_id, s.title, COUNT(*) AS listen_count
+            FROM friends f, user_listens_to_song ults, song s
+            WHERE f.user_email = @user_email
+            AND f.friend_email = ults.user_email
+            AND s.song_id = ults.song_id
+            GROUP BY s.song_id, s.title
+            ORDER BY listen_count DESC
+            LIMIT 50
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
         {
-            while (reader.Read())
-            {
-                string songId = reader["Song_Id"].ToString();
-                string title = reader["Title"].ToString();
-                int popularity = Convert.ToInt32(reader["Popularity"]);
+            Parameters = { new("user_email", userEmail) }
+        };
 
-                Console.WriteLine($"SongId: {songId}, Title: {title}, Popularity: {popularity}");
-            }
+        using var reader = command.ExecuteReader();
+
+        var songs = new List<(int, string, int)>();
+        while (reader.Read())
+        {
+            songs.Add((reader.GetInt32(0), reader.GetString(1), reader.GetInt32(2)));
         }
+
+        return songs;
     }
-}
-
-    
-
-
- 
 }
 
