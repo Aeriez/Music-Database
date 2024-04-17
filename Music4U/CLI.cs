@@ -57,6 +57,7 @@ public class CLI(NpgsqlConnection conn)
             "playlist" => Command.Playlist.Parse(args),
             "play" => Command.Play.Parse(args),
             "view" => Command.View.Parse(args),
+            "top" => Command.Top.Parse(args),
             "quit" => new Command.Quit(),
             _ => throw new CommandParserException($"Unknown command: {args.Current}"),
         };
@@ -462,6 +463,59 @@ public abstract record Command()
         }
     }
 
+    public record Top(TopType Type) : Command
+    {
+        public override void Execute(CLI cli)
+        {
+            switch (Type)
+            {
+                case TopType.Popular:
+                    Console.WriteLine("TODO");
+                    break;
+                case TopType.Followers:
+                    {
+                        var user = cli.CurrentUser;
+                        if (user == null)
+                        {
+                            Console.WriteLine("You are not logged in.");
+                            return;
+                        }
+                        Console.WriteLine("TODO");
+                        break;
+                    }
+                case TopType.Genres:
+                    Console.WriteLine("TODO");
+                    break;
+                case TopType.Suggest:
+                    {
+                        var user = cli.CurrentUser;
+                        if (user == null)
+                        {
+                            Console.WriteLine("You are not logged in.");
+                            return;
+                        }
+                        Console.WriteLine("TODO");
+                        break;
+                    }
+            }
+        }
+
+        public static Top Parse(IEnumerator<string> args)
+        {
+            if (!args.MoveNext())
+            {
+                throw new CommandParserException("Top command expected type argument.");
+            }
+
+            if (!Enum.TryParse(args.Current, true, out TopType type))
+            {
+                throw new CommandParserException($"Unknown top type: {args.Current}");
+            }
+
+            return new Top(type);
+        }
+    }
+
     public record Quit() : Command
     {
         public override void Execute(CLI cli)
@@ -490,6 +544,14 @@ public enum SongSearchType
     Artist,
     Album,
     Genre,
+}
+
+public enum TopType
+{
+    Popular, // The top 50 most popular songs in the last 30 days (rolling)
+    Followers, // The top 50 most popular songs among my followers
+    Genres, // The top 5 most popular genres of the month (calendar month)
+    Suggest, // For you: Recommend songs to listen to based on your play history (e.g. genre, artist) and the play history of similar users
 }
 
 /// <summary>
