@@ -1,16 +1,7 @@
 using Npgsql;
 
-public class Genre 
+public record Genre(int GenreId, string Name)
 {
-    public string Name { get; }
-    public int GenreId { get; }
-
-    private Genre(string name, int genreId)
-    {
-        Name = name;
-        GenreId = genreId;
-    }
-
     public static List<Genre> GetTop5GenresForCurrentMonth(NpgsqlConnection conn)
     {
         var firstOfMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
@@ -36,7 +27,7 @@ public class Genre
 
         while (reader.Read())
         {
-            var genre = new Genre(reader.GetString(0), -1); // Since genre ID isn't relevant for this context
+            var genre = new Genre(-1, reader.GetString(0)); // Since genre ID isn't relevant for this context
             genres.Add(genre);
         }
 
