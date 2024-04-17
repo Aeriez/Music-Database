@@ -221,8 +221,8 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
             LIMIT 50
         ";
 
-        using NpgsqlCommand command = new NpgsqlCommand(sql, conn);
-        using NpgsqlDataReader reader = command.ExecuteReader();
+        using var command = new NpgsqlCommand(sql, conn);
+        using var reader = command.ExecuteReader();
 
         var songs = new List<(int, string, int)>();
         while (reader.Read())
