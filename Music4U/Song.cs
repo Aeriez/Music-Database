@@ -175,8 +175,6 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
                 artists ASC
         ";
 
-
-
         var sql = searchType switch
         {
             SongSearchType.Name => nameSearchSql,
@@ -211,37 +209,29 @@ public record Song(int Id, string Title, string ArtistNames, string AlbumNames, 
         return songs;
     }
 
-    public static void getTop50MostPlayedSongs(NpgsqlConnection conn){
+    public static List<(int, string, int)> GetTop50MostPlayed(NpgsqlConnection conn)
+    {
         string sql = @"
-            SELECT SongId, COUNT(*) AS ListenCount
-            FROM UserListensToSong
-            WHERE DateTime >= DATEADD(day, -30, GETDATE())
-            GROUP BY SongId
-            ORDER BY ListenCount DESC
-            LIMIT 50;";
-           
+            SELECT s.song_id, s.title, COUNT(*) AS listen_count
+            FROM user_listens_to_song ults, song s
+            WHERE ults.date_time >= CURRENT_DATE - INTERVAL '30 days'
+            AND ults.song_id = s.song_id
+            GROUP BY s.song_id, s.title
+            ORDER BY listen_count DESC, MAX(ults.date_time) DESC
+            LIMIT 50
+        ";
 
+        using NpgsqlCommand command = new NpgsqlCommand(sql, conn);
+        using NpgsqlDataReader reader = command.ExecuteReader();
 
-    
-
-        using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
+        var songs = new List<(int, string, int)>();
+        while (reader.Read())
         {
-            command.Parameters.AddWithValue("query", $"%{sql.ToLower()}%");
-            using (NpgsqlDataReader reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    string songId = reader["SongId"].ToString();
-                    int listenCount = Convert.ToInt32(reader["ListenCount"]);   
-                    Console.WriteLine($"SongId: {songId}, ListenCount: {listenCount}");
-                }
-            }
-        };
+            songs.Add((reader.GetInt32(0), reader.GetString(1), reader.GetInt32(2)));
+        }
 
-
-    
+        return songs;
     }
-
 
     public static void getTop50MostPopularSongsAmongFriends(NpgsqlConnection conn)
 {
