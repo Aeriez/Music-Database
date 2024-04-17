@@ -85,6 +85,13 @@ public class Generator
 
     private static string[] articles = ["the", "My", "Your", "Our"];
 
+    private static readonly int UserCount = 500;
+
+    public static string RandomUserEmail()
+    {
+        return $"user{random.Next(UserCount)}@example.com";
+    }
+
     public static string RandomThing()
     {
         if (random.Next(3) == 0)
@@ -395,6 +402,188 @@ public class Generator
             };
 
             command.ExecuteNonQuery();
+        }
+    }
+
+    public static void PopulateFriends(NpgsqlConnection conn)
+    {
+        HashSet<(string, string)> friends = [];
+
+        for (int i = 0; i < UserCount; i++)
+        {
+            var email = $"user{i}@example.com";
+
+            if (random.Next(10) == 0)
+            {
+                // Popular user
+                var friendNum = random.Next(UserCount / 3) + UserCount / 3;
+
+                for (int j = 0; j < friendNum; j++)
+                {
+                    var friend = RandomUserEmail();
+                    friends.Add((friend, email));
+                }
+            }
+
+            var mutualCount = random.Next(5);
+            for (int j = 0; j < mutualCount; j++)
+            {
+                var friend = RandomUserEmail();
+                friends.Add((email, friend));
+                friends.Add((friend, email));
+            }
+
+            var followingCount = random.Next(15);
+            for (int j = 0; j < followingCount; j++)
+            {
+                var friend = RandomUserEmail();
+                friends.Add((email, friend));
+            }
+        }
+
+        var sql = @"
+            INSERT INTO friends (user_email, friend_email)
+            VALUES (@user_email, @friend_email)
+        ";
+
+        foreach (var (user, friend) in friends)
+        {
+            using var command = new NpgsqlCommand(sql, conn)
+            {
+                Parameters = { new("user_email", user), new("friend_email", friend) }
+            };
+
+            command.ExecuteNonQuery();
+        }
+    }
+
+    public static void PopulateCollections(NpgsqlConnection conn)
+    {
+        const string collectionSql = @"
+            INSERT INTO collection (user_email, name)
+            VALUES (@user_email, @name)
+            RETURNING collection_id
+        ";
+
+        const string collectionSongSql = @"
+            INSERT INTO collection_contains_song (collection_id, song_id)
+            SELECT @collection_id, song_id
+            FROM song
+            ORDER BY random()
+            LIMIT @song_count
+        ";
+
+        for (int i = 0; i < UserCount; i++)
+        {
+            var email = $"user{i}@example.com";
+            var collectionCount = (int)(Math.Pow(random.NextDouble(), 3) * 10);
+
+            for (int j = 0; j < collectionCount; j++)
+            {
+                var name = RandomAlbum();
+
+                int collectionId;
+                using (var command = new NpgsqlCommand(collectionSql, conn))
+                {
+                    command.Parameters.Add(new("user_email", email));
+                    command.Parameters.Add(new("name", name));
+
+#pragma warning disable CS8605 // Unboxing a possibly null value.
+                    collectionId = (int)command.ExecuteScalar();
+#pragma warning restore CS8605 // Unboxing a possibly null value.
+                }
+
+                var songCount = (int)(Math.Pow(random.NextDouble(), 3) * 10);
+
+                using (var command = new NpgsqlCommand(collectionSongSql, conn))
+                {
+                    command.Parameters.Add(new("collection_id", collectionId));
+                    command.Parameters.Add(new("song_count", songCount));
+
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+
+    public static void PopulateListensAndReviews(NpgsqlConnection conn)
+    {
+        const string getRandomSongSql = @"
+            SELECT song_id
+            FROM song
+            ORDER BY random()
+            LIMIT 1
+        ";
+
+        const string listenSql = @"
+            INSERT INTO user_listens_to_song (user_email, song_id, date_time)
+            VALUES (@user_email, @song_id, @date_time)
+        ";
+
+        const string reviewSql = @"
+            INSERT INTO user_rates_song (user_email, song_id, stars)
+            VALUES (@user_email, @song_id, @stars)
+        ";
+
+        for (int i = 0; i < UserCount; i++)
+        {
+            var email = $"user{i}@example.com";
+
+            var songCount = (int)(Math.Pow(random.NextDouble(), 10) * 25);
+
+            for (int j = 0; j < songCount; j++)
+            {
+                int songId;
+                using (var command = new NpgsqlCommand(getRandomSongSql, conn))
+                {
+#pragma warning disable CS8605 // Unboxing a possibly null value.
+                    songId = (int)command.ExecuteScalar();
+#pragma warning restore CS8605 // Unboxing a possibly null value.
+                }
+
+                var stars = random.Next(3) + random.Next(3) + random.Next(2);
+
+                using (var command = new NpgsqlCommand(reviewSql, conn))
+                {
+                    command.Parameters.Add(new("user_email", email));
+                    command.Parameters.Add(new("song_id", songId));
+                    command.Parameters.Add(new("stars", stars));
+
+                    try
+                    {
+                        command.ExecuteNonQuery();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
+                };
+
+                var listenCount = 1 + (int)Math.Pow(stars * random.NextDouble() + 1, 3);
+
+                var start = RandomDate(new DateTime(2000, 1, 1), DateTime.Now);
+                var end = RandomDate(start, DateTime.Now);
+                for (int k = 0; k < listenCount; k++)
+                {
+                    var listenDate = RandomDate(start, end);
+
+                    using (var command = new NpgsqlCommand(listenSql, conn))
+                    {
+                        command.Parameters.Add(new("user_email", email));
+                        command.Parameters.Add(new("song_id", songId));
+                        command.Parameters.Add(new("date_time", listenDate));
+
+                        try
+                        {
+                            command.ExecuteNonQuery();
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                        }
+                    };
+                }
+            }
         }
     }
 }
