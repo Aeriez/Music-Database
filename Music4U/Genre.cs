@@ -1,3 +1,5 @@
+using Npgsql;
+
 public class Genre 
 {
     public string Name { get; }
