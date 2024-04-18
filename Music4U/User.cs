@@ -513,7 +513,7 @@ public class User
             ),
             CombinedArtistPopularity AS (
                 SELECT COALESCE(uap.artist_id, sap.artist_id) AS artist_id,
-                    COALESCE(uap.user_artist_count, 0)
+                    COALESCE(uap.user_artist_count, 0) * 3
                         + COALESCE(sap.avg_artist_count, 0) AS combined_index
                 FROM UserArtistPopularity uap
                 FULL OUTER JOIN SimilarUserArtistPopularity sap ON uap.artist_id = sap.artist_id
@@ -546,7 +546,7 @@ public class User
             FROM RankedSongs rs, artist_creates_song acs, artist a
             WHERE rs.song_id = acs.song_id
             AND acs.artist_id = a.artist_id
-            ORDER BY rs.score, rs.song_id, a.name
+            ORDER BY rs.score DESC, rs.song_id, a.name
         ";
 
         using var command = new NpgsqlCommand(sql, conn)
