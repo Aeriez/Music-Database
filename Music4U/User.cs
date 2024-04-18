@@ -484,6 +484,99 @@ public class User
         return collections;
     }
 
+    public List<(int, string, List<string>)> GetSuggestions(NpgsqlConnection conn)
+    {
+        const string sql = @"
+            WITH UserArtistPopularity AS (
+                SELECT acs.artist_id, COUNT(*) AS user_artist_count
+                FROM user_listens_to_song ults
+                JOIN artist_creates_song acs ON ults.song_id = acs.song_id
+                WHERE ults.user_email = @user_email
+                GROUP BY acs.artist_id
+            ),
+            SimilarUsers AS (
+                SELECT DISTINCT ults2.user_email
+                FROM user_listens_to_song ults
+                JOIN user_listens_to_song ults2 ON ults.song_id = ults2.song_id
+                WHERE ults.user_email = @user_email AND ults2.user_email != ults.user_email
+            ),
+            SimilarUserArtistPopularity AS (
+                SELECT acs.artist_id, AVG(ults_count.user_artist_count) AS avg_artist_count
+                FROM (
+                    SELECT ults.user_email, acs.artist_id, COUNT(*) AS user_artist_count
+                    FROM user_listens_to_song ults
+                    JOIN artist_creates_song acs ON ults.song_id = acs.song_id
+                    WHERE ults.user_email IN (SELECT user_email FROM SimilarUsers)
+                    GROUP BY ults.user_email, acs.artist_id
+                ) AS ults_count, artist_creates_song acs
+                GROUP BY acs.artist_id
+            ),
+            CombinedArtistPopularity AS (
+                SELECT COALESCE(uap.artist_id, sap.artist_id) AS artist_id,
+                    COALESCE(uap.user_artist_count, 0)
+                        + COALESCE(sap.avg_artist_count, 0) AS combined_index
+                FROM UserArtistPopularity uap
+                FULL OUTER JOIN SimilarUserArtistPopularity sap ON uap.artist_id = sap.artist_id
+            ),
+            SongsByPopularArtists AS (
+                SELECT acs.song_id,
+                    COUNT(ults.song_id) AS global_listen_count,
+                    SUM(CASE WHEN ults.user_email = @user_email THEN 1 ELSE 0 END) AS personal_listen_count
+                FROM artist_creates_song acs
+                JOIN user_listens_to_song ults ON acs.song_id = ults.song_id
+                WHERE acs.artist_id IN (SELECT artist_id FROM CombinedArtistPopularity)
+                GROUP BY acs.song_id
+            ),
+            RankedSongs AS (
+                SELECT DISTINCT s.song_id,
+                    s.title,
+                    (spa.global_listen_count - LOG(1 + COALESCE(spa.personal_listen_count, 0)))
+                        * cap.combined_index AS score
+                FROM SongsByPopularArtists spa
+                JOIN song s ON spa.song_id = s.song_id
+                JOIN CombinedArtistPopularity cap ON cap.artist_id IN (
+                    SELECT artist_id
+                    FROM artist_creates_song acs
+                    WHERE acs.song_id = s.song_id
+                )
+                ORDER BY score DESC
+                LIMIT 25
+            )
+            SELECT rs.song_id, rs.title, a.name
+            FROM RankedSongs rs, artist_creates_song acs, artist a
+            WHERE rs.song_id = acs.song_id
+            AND acs.artist_id = a.artist_id
+            ORDER BY rs.score, rs.song_id, a.name
+        ";
+
+        using var command = new NpgsqlCommand(sql, conn)
+        {
+            Parameters = { new("user_email", Email) }
+        };
+
+        using var reader = command.ExecuteReader();
+
+        var suggestions = new List<(int, string, List<string>)>();
+        while (reader.Read())
+        {
+            var songId = reader.GetInt32(0);
+            var title = reader.GetString(1);
+            var artistName = reader.GetString(2);
+
+            // if this is the first time we've seen this song, add it to the list
+            if (suggestions.Count == 0 || suggestions[^1].Item1 != songId)
+            {
+                suggestions.Add((songId, title, new List<string> { artistName }));
+            }
+            else
+            {
+                // if this is not the first time we've seen this song, add the artist to the list
+                suggestions[^1].Item3.Add(artistName);
+            }
+        }
+
+        return suggestions;
+    }
 }
 
 
