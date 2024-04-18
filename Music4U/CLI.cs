@@ -541,7 +541,24 @@ public abstract record Command()
                             Console.WriteLine("You are not logged in.");
                             return;
                         }
-                        Console.WriteLine("TODO");
+
+                        var songs = user.GetSuggestions(cli.Conn);
+
+                        if (songs.Count == 0)
+                        {
+                            Console.WriteLine("No personalized suggestions were able to be calculated.");
+                            Console.WriteLine("Try `top popular` instead.");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Top {songs.Count} personalized suggestion(s):");
+                            for (var i = 0; i < songs.Count; i++)
+                            {
+                                var (id, title, artists) = songs[i];
+                                var artistFormatted = string.Join(", ", artists);
+                                Console.WriteLine($"{i + 1}. {title} by {artistFormatted} (id {id})");
+                            }
+                        }
                         break;
                     }
             }
