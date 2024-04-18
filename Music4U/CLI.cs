@@ -470,8 +470,24 @@ public abstract record Command()
             switch (Type)
             {
                 case TopType.Popular:
-                    Console.WriteLine("TODO");
-                    break;
+                    {
+                        var songs = Song.GetTop50MostPlayed(cli.Conn);
+
+                        if (songs.Count == 0)
+                        {
+                            Console.WriteLine("No songs were played recently.");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Top {songs.Count} most played song(s):");
+                            for (var i = 0; i < songs.Count; i++)
+                            {
+                                var (id, title, listenCount) = songs[i];
+                                Console.WriteLine($"{i + 1}. {title} (id {id}) - {listenCount} listen(s)");
+                            }
+                        }
+                        break;
+                    }
                 case TopType.Followers:
                     {
                         var user = cli.CurrentUser;
@@ -480,12 +496,43 @@ public abstract record Command()
                             Console.WriteLine("You are not logged in.");
                             return;
                         }
-                        Console.WriteLine("TODO");
+
+                        var songs = Song.GetTop50MostPopularSongsAmongFriends(cli.Conn, user.Email);
+
+                        if (songs.Count == 0)
+                        {
+                            Console.WriteLine("No songs were played recently.");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Top {songs.Count} most popular song(s) among your friends:");
+                            for (var i = 0; i < songs.Count; i++)
+                            {
+                                var (id, title, listenCount) = songs[i];
+                                Console.WriteLine($"{i + 1}. {title} (id {id}) - {listenCount} listen(s)");
+                            }
+                        }
                         break;
                     }
                 case TopType.Genres:
-                    Console.WriteLine("TODO");
-                    break;
+                    {
+                        var genres = Genre.GetTop5GenresForCurrentMonth(cli.Conn);
+
+                        if (genres.Count == 0)
+                        {
+                            Console.WriteLine("No songs were played recently.");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Top {genres.Count} most played genre(s):");
+                            for (var i = 0; i < genres.Count; i++)
+                            {
+                                var (genre, count) = genres[i];
+                                Console.WriteLine($"{i + 1}. {genre.Name} - {count} listen(s)");
+                            }
+                        }
+                        break;
+                    }
                 case TopType.Suggest:
                     {
                         var user = cli.CurrentUser;
